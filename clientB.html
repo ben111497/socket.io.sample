@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-tw">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>socket.io test</title>
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            var userID = "b"
+            var room = ""
+            var socket = io.connect('http://localhost:8081');
+            socket.on('news', function (data) {
+                console.log(data);
+                socket.emit('my other event', { my: 'data' });
+            });
+        </script>
+    </head>
+    <body>
+        <input type="text" id="input" autocomplete="off" /><button onclick="sendMsg()">Send</button>
+        <div id="msg"></div>
+
+        <script>
+            socket.on('connect', function () {
+                socket.emit("greet");
+            });
+
+            /**
+             * 廣播
+             */
+            socket.on('all', (data) => {
+                var obj = JSON.parse(data)
+                document.getElementById("msg").innerText = obj.message
+                console.log("all: " + obj.message)
+            });
+
+            /**
+             * Room
+             */
+
+             socket.on('room', (data) => {
+                var obj = JSON.parse(data)
+                document.getElementById("msg").innerText = obj.message
+                console.log("room: " + obj.message)
+            });
+
+            socket.on('joined', function () {
+                console.log("加入房間成功")
+            });
+
+            socket.emit('join', JSON.stringify({"userID": userID}))
+
+            /**
+             * Function
+             */
+            function sendMsg() {
+                var msg = document.getElementById("input").value
+                var data = {"userID": userID, "message": msg}
+                console.log(data)
+                socket.emit('message', JSON.stringify(data))
+            }
+        </script>
+    </body>
+</html>
