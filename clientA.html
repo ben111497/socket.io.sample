@@ -8,7 +8,7 @@
         <script>
             var userID = "a"
             var room = ""
-            var socket = io.connect('http://localhost:8081');
+            var socket = io.connect();
             socket.on('news', function (data) {
                 console.log(data);
                 socket.emit('my other event', { my: 'data' });
@@ -40,7 +40,7 @@
             socket.on('room', (data) => {
                 var obj = JSON.parse(data)
                 document.getElementById("msg").innerText = obj.message
-                console.log("room: " + obj.message)
+                console.log("room: " + JSON.stringify({"message": obj.message}))
             });
 
             socket.on('joined', function (json) {

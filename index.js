@@ -11,10 +11,15 @@ var room = "no1"
  */
 app.get('/a', (req, res) => {
     res.sendFile(__dirname + '/clientA.html');
-  });
+});
 
 app.get('/b', (req, res) => {
     res.sendFile(__dirname + '/clientB.html');
+});
+
+app.get('/', (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.end("hello worlds");
 });
 
 /**
@@ -29,15 +34,15 @@ io.on('connection', (socket) => {
   socket.on('message', (data) => {
     var obj = JSON.parse(data)
     console.log(obj.userID + ":" + obj.message)
-    io.in(room).emit('room', JSON.stringify(obj))
+    io.in(room).emit('room', { message: obj.message })
   })
 
   socket.on('join', (json) => {
     var obj = JSON.parse(json)
-    if (obj.userID == "a" || obj.userID == "b") {
+
       socket.join(room)
       socket.emit('joined', socket.id)
-    }
+      console.log("socketID:" + obj.userID + " : " + socket.id)
   })
 
   socket.on('leave', (room) => {
