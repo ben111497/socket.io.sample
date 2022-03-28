@@ -20,11 +20,19 @@ app.get('/', (req, res) => {
   res.end("hello worlds");
 });
 
+app.get('/a', (req, res) => {
+  res.sendFile(__dirname + '/clientA.html');
+});
+
+app.get('/b', (req, res) => {
+  res.sendFile(__dirname + '/clientB.html');
+});
+
 /**
  * socket 事件
  */
 io.on('connection', (socket) => {
-  console.log('new user connected');
+  console.log('new user connected ' + 'socketID: ' + socket.id);
   /**
    * Room
    */
