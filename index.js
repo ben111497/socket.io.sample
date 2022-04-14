@@ -11,6 +11,31 @@ var userGroup = []
 var joinRoom = []
 var finishID = []
 var isReady = []
+var system = []
+
+const GameMode = Object.freeze({"Racing": 0, "multiplication": 1})
+
+class Game {
+  constructor(roomID, videoID, antes, rates, gameMode, users) {
+    this.roomID = roomID;
+    this.videoID = videoID;
+    this.antes = antes;
+    this.rates = rates;
+    this.gameMode = gameMode;
+    this.users = users;
+  }
+}
+
+class User {
+  constructor(userID, accessKey, socketID, useTime, coin, status) {
+    this.userID = userID;
+    this.accessKey = accessKey;
+    this.socketID = socketID;
+    this.useTime = useTime;
+    this.coin = coin;
+    this.status = status;
+  }
+}
 
 /**
  * 路由
@@ -66,6 +91,12 @@ io.on('connection', (socket) => {
     if (finishID.length == 2) judge()
   })
 
+  socket.on('room_leave', (data) => {
+    var obj = JSON.parse(data)
+    console.log("room_finish => userID: " + obj.userID)
+    finishID.push({userID: obj.userID, useTime: obj.useTime})
+    if (finishID.length == 2) judge()
+  })
 
   socket.on('leave', (data) => {
     var obj = JSON.parse(data)
