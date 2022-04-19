@@ -4,36 +4,44 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
-var room = "no1"
-var currentQuestionIndex = -1
-var timeoutID = setTimeout(timeOut, 1)
+var roomID = "no1"
 var userGroup = []
 var joinRoom = []
 var finishID = []
 var isReady = []
+
 var system = []
+var timerGroup = []
 
 const GameMode = Object.freeze({"Racing": 0, "multiplication": 1})
+const GameStatus = Object.freeze({"WaitingQuestion": -3, "WaitingAnswer": -2, "Preparing": -1, "Answering": 0, "LeaveSystem": 1, "LeaveSelf": 2})
 
 class Game {
-  constructor(roomID, videoID, antes, rates, gameMode, users) {
+  constructor(roomID, videoID, antes, rates, gameMode, questionIndex, users) {
     this.roomID = roomID;
     this.videoID = videoID;
     this.antes = antes;
     this.rates = rates;
     this.gameMode = gameMode;
+    this.questionIndex = questionIndex;
     this.users = users;
   }
 }
 
 class User {
-  constructor(userID, accessKey, socketID, useTime, coin, status) {
+  constructor(userID, socketID, coin, remainTime, status) {
     this.userID = userID;
-    this.accessKey = accessKey;
     this.socketID = socketID;
-    this.useTime = useTime;
     this.coin = coin;
+    this.remainTime = remainTime;
     this.status = status;
+  }
+}
+
+class Timer {
+  constructor(roomID, timer) {
+    this.roomID = roomID;
+    this.timer = timer;
   }
 }
 
@@ -45,12 +53,19 @@ app.get('/', (req, res) => {
   res.end("hello worlds");
 });
 
-app.get('/a', (req, res) => {
-  res.sendFile(__dirname + '/clientA.html');
-});
+// app.get('/a', (req, res) => {
+//   res.sendFile(__dirname + '/clientA.html');
+// });
 
-app.get('/b', (req, res) => {
-  res.sendFile(__dirname + '/clientB.html');
+// app.get('/b', (req, res) => {
+//   res.sendFile(__dirname + '/clientB.html');
+// });
+
+/**
+ * 連線 port 設定
+ */
+ server.listen(8082, () => {
+  console.log('listening on *:8082');
 });
 
 /**
@@ -58,111 +73,141 @@ app.get('/b', (req, res) => {
  */
 io.on('connection', (socket) => {
   console.log('new user connected ' + 'socketID: ' + socket.id);
+
   /**
-   * Room
+   * Join room
    */
   socket.on('join', (data) => {
     var obj = JSON.parse(data)
-    console.log("join => userID: " + obj.userID)
-    userGroup.push(obj.userID)
-    socket.join(room)
+    
+    console.log("---------------------------------------------")1
+    console.log("join => userID: " + obj.userID + ", roomID: " + roomID)
 
-    if (userGroup.find( it => it == "2AB0BCAC0AF7B35AD957540E491256498F31FC20") && userGroup.find( it => it == "8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE")) {
-      var res = {roomID: "no1", userA: "2AB0BCAC0AF7B35AD957540E491256498F31FC20", userB: "8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE", videoID: "https://www.youtube.com/watch?v=cCOMPI8doc0"}
-      io.emit('matched', res)
-    }
+    socket.join(roomID)
+
+    var res = {roomID: "no1", userA: "2AB0BCAC0AF7B35AD957540E491256498F31FC20", userB: "8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE", videoID: "https://www.youtube.com/watch?v=cCOMPI8doc0"}
+       
+    if (system.find(it => it.roomID == roomID) == undefined) {
+      var list = []
+      list.push(new User("2AB0BCAC0AF7B35AD957540E491256498F31FC20", "socketID-a", 0, 0, GameStatus.WaitingQuestion))
+      list.push(new User("8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE", "socketID-b", 0, 0, GameStatus.WaitingQuestion))
+      system.push(new Game(roomID, "https://www.youtube.com/watch?v=cCOMPI8doc0", 5, 3, GameMode.Racing, 0, list))
+    }   
+
+    io.emit('matched', res)
   })
 
+  /**
+   * Room
+   */
   socket.on('room_isReady', (data) => {
     var obj = JSON.parse(data)
+
+    console.log("---------------------------------------------")
     console.log("room_isReady => userID: " + obj.userID)
-    if (!isReady.find ( it => it == obj.userID)) isReady.push(obj.userID)
-    if (isReady.length == 2) {
-      isReady.length = 0
-      currentQuestionIndex = -1
-      gameStart()
+
+    let user = system.find(it => it.roomID == obj.roomID).users.find(it => it.userID == obj.userID)
+    user.coin = obj.coin
+    user.status = GameStatus.WaitingAnswer
+
+    const okCount = system.find(it => it.roomID == obj.roomID).users.filter((value) => value.status == GameStatus.WaitingAnswer).length
+
+    if (okCount == 2) {
+      gameStart(obj.roomID)
+      console.log("Game Start")
     }
   })
 
   socket.on('room_finish', (data) => {
     var obj = JSON.parse(data)
-    console.log("room_finish => userID: " + obj.userID)
-    finishID.push({userID: obj.userID, useTime: obj.useTime})
-    if (finishID.length == 2) judge()
-  })
 
-  socket.on('room_leave', (data) => {
-    var obj = JSON.parse(data)
-    console.log("room_finish => userID: " + obj.userID)
-    finishID.push({userID: obj.userID, useTime: obj.useTime})
-    if (finishID.length == 2) judge()
-  })
+    console.log("---------------------------------------------")
+    console.log("room_finish => userID: " + obj.userID + " roomID: " + obj.roomID)
+    
+    const user = system.find(it => it.roomID == obj.roomID).users.find(it => it.userID == obj.userID)
 
-  socket.on('leave', (data) => {
-    var obj = JSON.parse(data)
-    console.log("leave => userID: " + obj.userID)
-    socket.leave(room)
-    socket.disconnect()
-    var index = userGroup.indexOf(obj.userID)
-    if (index != -1) userGroup.splice(index, 1)
-  })
- 
-  /**
-   * 全體廣播
-   */
-  socket.on('connectCheck', (data) => {
-    var obj = JSON.parse(data)
-    console.log(obj.userID)
-    userGroup.push(obj.userID)
+    user.remainTime = obj.remainTime
+    user.status = GameStatus.WaitingAnswer
 
-    if (userGroup.find( it => it == "2AB0BCAC0AF7B35AD957540E491256498F31FC20") && userGroup.find( it => it == "8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE")) {
-      var res = {roomID: "no1", userA: "2AB0BCAC0AF7B35AD957540E491256498F31FC20", userB: "8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE", videoID: "621f35aaab711e06e4268512"}
-      io.emit('matched', res)
+    if (system.find(it => it.roomID == obj.roomID).users.filter((value) => value.status == GameStatus.WaitingAnswer).length == 2) { 
+      judge(roomID) 
     }
   })
 
-});
+   //以上已修改完成 4/18
 
+  // socket.on('room_leave', (data) => {
+  //   var obj = JSON.parse(data)
+  //   console.log("room_finish => userID: " + obj.userID)
 
-/**
- * 連線 port 設定
- */
-server.listen(8082, () => {
-  console.log('listening on *:8082');
+  //   finishID.push({userID: obj.userID, useTime: obj.useTime})
+  //   if (finishID.length == 2) judge(roomID)
+  // })
+
+  // socket.on('leave', (data) => {
+  //   var obj = JSON.parse(data)
+  //   console.log("leave => userID: " + obj.userID)
+
+  //   socket.leave(roomID)
+  //   socket.disconnect()
+  //   var index = userGroup.indexOf(obj.userID)
+  //   if (index != -1) userGroup.splice(index, 1)
+  // })
+
 });
 
 /**
  * game function
  */
 
-function gameStart() {
-  currentQuestionIndex ++
-  io.in(room).emit('room_game_start', {index: currentQuestionIndex})
-  clearTimeout(timeoutID)
-  timeoutID = setTimeout(timeOut, 60000)
-  console.log("gameStart: " + currentQuestionIndex)
-}
+function gameStart(roomID) {
+  let index = system.find(it => it.roomID == roomID)
+  index.questionIndex ++
 
-function judge() {
-  if (finishID.length == 2) {
-    if (finishID[0].useTime < finishID[1].useTime) {
-      io.in(room).emit('room_judge', {userID: finishID[0].userID})
-    } else if (finishID[0].useTime > finishID[1].useTime) {
-      io.in(room).emit('room_judge', {userID: finishID[1].userID})
-    } else {
-      io.in(room).emit('room_judge', {userID: ""})
-    }
-  } else if (finishID.length == 1) {
-    io.in(room).emit('room_judge', {userID: finishID[0].userID})
+  index.users[0].status = GameStatus.Answering
+  index.users[0].remainTime = 60
+  index.users[1].status = GameStatus.Answering
+  index.users[1].remainTime = 60
+
+  io.in(roomID).emit('room_game_start', {roomID: roomID, index: index.questionIndex})
+  
+  var timer = setTimeout(() => judge(roomID), 62000)
+
+  const roomTimer = timerGroup.find(it => it.roomID == roomID)
+  if (roomTimer == undefined) {
+    timerGroup.push(new Timer(roomID, timer))
   } else {
-    io.in(room).emit('room_judge', {userID: ""})
+    roomTimer.timer = timer
   }
-  clearTimeout(timeoutID)
-  timeoutID = setTimeout(gameStart, 2000)
-  finishID.length = 0
+
+  console.log("---------------------------------------------")
+  console.log("room_game_start => " + "room: ID:" + roomID + ", questionIndex: " + index.questionIndex)
 }
 
-function timeOut() {
-  if (currentQuestionIndex == -1) return
-  judge()
+
+function judge(roomID) {
+  console.log("---------------------------------------------")
+  console.log("judge => roomID: " + roomID)
+
+  const timer = timerGroup.find(it => it.roomID == roomID)
+  clearTimeout(timer.timer)
+
+  let info = system.find(it => it.roomID == roomID)
+  let userA = info.users[0]
+  let userB = info.users[1]
+  let coin = info.antes * info.rates
+
+  if (userA.remainTime > userB.remainTime) {
+    io.in(roomID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userA.userID})
+  } else if (userA.remainTime < userB.remainTime) {
+    io.in(roomID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userB.userID})
+  } else {
+    io.in(roomID).emit('room_judge', {roomID: roomID, coin: 0, winUserID: ""})
+  }
+
+  //setTimeout(gameStart(roomID), 2000)
+}
+
+function coinSettle() {
+  //call api 扣錢加錢
 }
