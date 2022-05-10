@@ -1,10 +1,14 @@
 const express = require('express');
+const myClass = require('./class')
+const axios = require('axios');
 const app = express();
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 const { v4: uuidv4 } = require('uuid');
+
+const API_URL = "https://api.italkutalk.com/api/"
 
 var system = [] //各個房間的玩家基本資料含房間資訊
 var timerGroup = [] //存放各個房間的時間倒數計時
@@ -22,54 +26,16 @@ const GameStatus = Object.freeze({"WaitingQuestion": -3, "WaitingAnswer": -2, "J
 const GameConnect = Object.freeze({"Leave": 1, "Bust": 2, "QuestionEnd": 3, "Disconnect": 4})
 
 /**
- * Class
- */
-
-//房間相關資訊
-class Game {
-  constructor(roomID, videoID, antes, rates, gameMode, questionIndex, questionCount, users) {
-    this.roomID = roomID;
-    this.videoID = videoID;
-    this.antes = antes;
-    this.rates = rates;
-    this.gameMode = gameMode;
-    this.questionIndex = questionIndex;
-    this.questionCount = questionCount;
-    this.users = users;
-  }
-}
-
-//使用者遊戲資料
-class User {
-  constructor(userID, socketID, coin, remainTime, status) {
-    this.userID = userID;
-    this.socketID = socketID;
-    this.coin = coin;
-    this.remainTime = remainTime;
-    this.status = status;
-  }
-}
-
-//各房間計時器
-class Timer {
-  constructor(roomID, timer) {
-    this.roomID = roomID;
-    this.timer = timer;
-  }
-}
-
-/**
  * 路由
  */
 
 app.get('/', (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
-  res.end("hello worlds");
 });
 
-// app.get('/a', (req, res) => {
-//   res.sendFile(__dirname + '/clientA.html');
-// });
+app.get('/a', (req, res) => {
+  res.sendFile(__dirname + '/clientA.html');
+});
 
 /**
  * 連線 port 設定
@@ -99,9 +65,9 @@ io.on('connection', (socket) => {
         
     if (system.find(it => it.roomID == roomID) == undefined) {
       let list = []
-      list.push(new User("2AB0BCAC0AF7B35AD957540E491256498F31FC20", "socketID-a", 0, 0, GameStatus.WaitingQuestion))
-      list.push(new User("8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE", "socketID-b", 0, 0, GameStatus.WaitingQuestion))
-      system.push(new Game(roomID, "https://www.youtube.com/watch?v=KZbswFDOOsY", 5, 3, GameMode.Racing, 0, 10, list))
+      list.push(new myClass.User("2AB0BCAC0AF7B35AD957540E491256498F31FC20", "socketID-a", 0, 0, GameStatus.WaitingQuestion))
+      list.push(new myClass.User("8A88208FCE4862B7541F74D4EADBAAB71F6CBEBE", "socketID-b", 0, 0, GameStatus.WaitingQuestion))
+      system.push(new myClass.Game(roomID, "https://www.youtube.com/watch?v=KZbswFDOOsY", 5, 3, GameMode.Racing, 0, 10, list))
     }   
 
     io.emit('matched', res)
@@ -158,7 +124,7 @@ io.on('connection', (socket) => {
     const findTimer = waitingGroup.find(it => it.roomID == obj.roomID)
     if (findTimer == undefined) {
       const timer = setTimeout(() => connectTimeOut(obj.roomID), 5000)
-      waitingGroup.push(new Timer(obj.roomID, timer))
+      waitingGroup.push(new myClass.Timer(obj.roomID, timer))
     } else {
       clearTimeout(findTimer.timer)
       waitingGroup = waitingGroup.filter (it => it.roomID == obj.roomID)
@@ -202,7 +168,7 @@ function gameStart(roomID) {
 
   const roomTimer = timerGroup.find(it => it.roomID == roomID)
   if (roomTimer == undefined) {
-    timerGroup.push(new Timer(roomID, timer))
+    timerGroup.push(new myClass.Timer(roomID, timer))
   } else {
     roomTimer.timer = timer
   }
@@ -257,7 +223,7 @@ function judge(roomID) {
 
       if (info.questionIndex >= info.questionCount) { questionEnd(roomID) }
     }
-  }, 1000)
+  }, 500)
 }
 
 // Log
@@ -334,5 +300,41 @@ function coinJudge(roomID, winUserID, loseUserID, coin) {
   console.log("------------------------------------------------------------------------------------------")
   console.log("<< function -> coinJudge >>")
   console.log({winUserID: winUserID, loseUserID: loseUserID, coin: coin})
-  //call api 扣錢加錢 還沒做
+  //call api 扣錢加錢和結果 還沒做
+  httpPost("game/result", new myClass.GameResultReq("no1", 1, false, "B501D4F601276CA77928E4D7C2C2E61E1D75B8BD", "system", "60013f5c7f073f0c9cc9c930"))
+}
+
+/**
+ * API 相關
+ */
+
+async function httpPost(url, data) {
+  async function post() {
+    try { 
+      apiConsole(true, API_URL + url, data)
+      return await axios.post(API_URL + url, data).then(response => response.data)
+    } catch(error) {
+      console.log(error)
+    }
+  }
+
+  var temp = await post();
+  apiConsole(false, API_URL + url, temp)
+}
+
+function apiConsole(isReq, httpUrl, data) {
+  let status
+  let newData
+
+  if (isReq) { 
+    newData = data 
+    status = "Request"
+  } else { 
+    newData = data.result 
+    status = "Response"
+  }
+
+  console.log("------------------------------------------------------------------------------------------")
+  console.log(status + " => " + httpUrl)
+  console.log(newData)
 }
