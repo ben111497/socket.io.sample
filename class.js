@@ -1,8 +1,9 @@
 /**
- * Class for game
+ * ==================================================== Class for game ====================================================
  */
 
 // 房間相關資訊
+// roomID: String, videoID: String, antes: Int, rates: Int, gameMode: GameStatus, questionIndex: Int, questionCount: Int, users: Array<User>
 class Game {
     constructor(roomID, videoID, antes, rates, gameMode, questionIndex, questionCount, users) {
         this.roomID = roomID;
@@ -17,17 +18,21 @@ class Game {
 }
   
 // 使用者遊戲資料
+// userID: String, socketID: String, coin: Int, remainTime: Int, status: GameStatus
 class User {
-    constructor(userID, socketID, coin, remainTime, status) {
+    constructor(userID, socketID, coin, remainTime, status, win, loss) {
         this.userID = userID;
         this.socketID = socketID;
         this.coin = coin;
         this.remainTime = remainTime;
         this.status = status;
+        this.win = win;
+        this.loss = loss;
     }
 }
 
 // 各房間計時器
+// roomID: String, timer: Int
 class Timer {
     constructor(roomID, timer) {
         this.roomID = roomID;
@@ -36,7 +41,7 @@ class Timer {
 }
 
 /**
- * itut req data
+ * ==================================================== itut req data ====================================================
  */
 
 // 遊戲結果
@@ -55,11 +60,16 @@ class GameResultReq {
 // 遊戲金幣變動
 // mode: Int, status: Int, coin: Int
 class GameCoinSettleReq {
-    constructor(mode, status, coin) {
+    constructor(userID, mode, status, coin) {
+        this.userID = userID;
         this.mode = mode;
         this.status = status;
         this.coin = coin;
     }
 }
 
-module.exports = { Game, User, Timer, GameResultReq }
+/**
+ * ==================================================== module.exports ====================================================
+ */
+
+module.exports = { Game, User, Timer, GameResultReq, GameCoinSettleReq }
