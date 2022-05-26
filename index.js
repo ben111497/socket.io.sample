@@ -321,6 +321,7 @@ function coinSettlement(roomID) {
 
   //金幣處理 userA
   let userACoin = (userA.win - userA.loss) * info.antes * info.rates
+  let userAOriginCoin = userA.coin
 
   if (userACoin > 0) {
     httpPost("game/coin/settle", new myClass.GameCoinSettleReq(userA.userID, 0, 2, userACoin))
@@ -330,6 +331,7 @@ function coinSettlement(roomID) {
 
   //金幣處理 userB
   let userBCoin = (userB.win - userB.loss) * info.antes * info.rates
+  let userBOriginCoin = userB.coin
 
   if (userBCoin > 0) {
     httpPost("game/coin/settle", new myClass.GameCoinSettleReq(userB.userID, 0, 2, userBCoin))
@@ -346,27 +348,30 @@ function coinSettlement(roomID) {
     winUserID = userA.userID
     lossUserID = userB.userID
 
-    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: winUserID, coin: userACoin, status: GameResult.Win})
-    socketLog(false, "room_game_result", {roomID: roomID, userID: winUserID, coin: userACoin, status: GameResult.Win})
+    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: winUserID, originCoin: userAOriginCoin, coin: userACoin, status: GameResult.Win})
+    socketLog(false, "room_game_result", {roomID: roomID, userID: winUserID, originCoin: userAOriginCoin, coin: userACoin, status: GameResult.Win})
 
-    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: lossUserID, coin: -userBCoin , status: GameResult.Loss})
-    socketLog(false, "room_game_result", {roomID: roomID, userID: lossUserID, coin: -userBCoin ,status: GameResult.Loss})
+    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: lossUserID, originCoin: userBOriginCoin, coin: -userBCoin , status: GameResult.Loss})
+    socketLog(false, "room_game_result", {roomID: roomID, userID: lossUserID, originCoin: userBOriginCoin, coin: -userBCoin ,status: GameResult.Loss})
   } else if (userA.win < userB.win) {
     winUserID = userB.userID
     lossUserID = userA.userID
 
-    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: lossUserID, coin: -userACoin, status: GameResult.Loss})
-    socketLog(false, "room_game_result", {roomID: roomID, userID: lossUserID, coin: -userACoin, status: GameResult.Loss})
+    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: lossUserID, originCoin: userAOriginCoin, coin: -userACoin, status: GameResult.Loss})
+    socketLog(false, "room_game_result", {roomID: roomID, userID: lossUserID, originCoin: userAOriginCoin, coin: -userACoin, status: GameResult.Loss})
 
-    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: winUserID, coin: userBCoin, status: GameResult.Win})
-    socketLog(false, "room_game_result", {roomID: roomID, userID: winUserID, coin: userBCoin, status: GameResult.Win})
+    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: winUserID, originCoin: userBOriginCoin, coin: userBCoin, status: GameResult.Win})
+    socketLog(false, "room_game_result", {roomID: roomID, userID: winUserID, originCoin: userBOriginCoin, coin: userBCoin, status: GameResult.Win})
   } else {
     winUserID = userA.userID
     lossUserID = userB.userID
     draw = true
 
-    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: "", coin: 0, status: GameResult.Draw})
-    socketLog(false, "room_game_result", {roomID: roomID, userID: "", coin: 0, status: GameResult.Draw})
+    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: lossUserID, originCoin: userAOriginCoin, coin: 0, status: GameResult.Draw})
+    socketLog(false, "room_game_result", {roomID: roomID, userID: lossUserID, originCoin: userAOriginCoin, coin: 0, status: GameResult.Draw})
+
+    io.in(roomID).emit('room_game_result', {roomID: roomID, userID: winUserID, originCoin: userBOriginCoin, coin: 0, status: GameResult.Draw})
+    socketLog(false, "room_game_result", {roomID: roomID, userID: winUserID, originCoin: userBOriginCoin, coin: 0, status: GameResult.Draw})
   }
 
   httpPost("game/result", new myClass.GameResultReq(roomID, info.gameMode, draw, winUserID, lossUserID, ""))
