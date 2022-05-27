@@ -2,11 +2,21 @@
  * ==================================================== Class for game ====================================================
  */
 
-// 房間相關資訊
+// 遊戲配對 格式：Map -> key: roomID, valuse: GamePairing
+// socketId: String, language: Int, antes: Int, gameMode: GameStatus
+class GamePairing {
+    constructor(socketId, language, antes, gameMode) {
+        this.socketId = socketId;
+        this.language = language;
+        this.antes = antes;
+        this.gameMode = gameMode;
+    }
+}
+
+// 房間相關資訊 格式：Map -> key: roomID, valuse: GamePairing
 // roomID: String, videoID: String, antes: Int, rates: Int, gameMode: GameStatus, questionIndex: Int, questionCount: Int, users: Array<User>
 class Game {
-    constructor(roomID, videoID, antes, rates, gameMode, questionIndex, questionCount, users) {
-        this.roomID = roomID;
+    constructor(videoID, antes, rates, gameMode, questionIndex, questionCount, users) {
         this.videoID = videoID;
         this.antes = antes;
         this.rates = rates;
@@ -17,7 +27,7 @@ class Game {
     }
 }
   
-// 使用者遊戲資料
+// 使用者遊戲資料 格式：Array
 // userID: String, socketID: String, coin: Int, remainTime: Int, status: GameStatus
 class User {
     constructor(userID, socketID, coin, remainTime, status, win, loss) {
@@ -28,15 +38,6 @@ class User {
         this.status = status;
         this.win = win;
         this.loss = loss;
-    }
-}
-
-// 各房間計時器
-// roomID: String, timer: Int
-class Timer {
-    constructor(roomID, timer) {
-        this.roomID = roomID;
-        this.timer = timer;
     }
 }
 
@@ -72,4 +73,4 @@ class GameCoinSettleReq {
  * ==================================================== module.exports ====================================================
  */
 
-module.exports = { Game, User, Timer, GameResultReq, GameCoinSettleReq }
+module.exports = { Game, User, GameResultReq, GameCoinSettleReq }
