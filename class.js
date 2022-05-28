@@ -2,13 +2,16 @@
  * ==================================================== Class for game ====================================================
  */
 
-// 遊戲配對 格式：Map -> key: roomID, valuse: GamePairing
-// socketId: String, language: Int, antes: Int, gameMode: GameStatus
+// 遊戲配對
+// socketId: String, userID: String, language: Int, antes: Int, gameMode: GameStatus
 class GamePairing {
-    constructor(socketId, language, antes, gameMode) {
-        this.socketId = socketId;
+    constructor(socketID, userID, language, antes, rates, coin, gameMode) {
+        this.socketID = socketID;
+        this.userID = userID;
         this.language = language;
         this.antes = antes;
+        this.rates = rates;
+        this.coin = coin;
         this.gameMode = gameMode;
     }
 }
@@ -69,8 +72,17 @@ class GameCoinSettleReq {
     }
 }
 
+// 取得題目
+// roomID: String, languae: Int
+class GameQuestionGetReq {
+    constructor(roomID, languae) {
+        this.roomID = roomID;
+        this.languae = languae;
+    }
+}
+
 /**
  * ==================================================== module.exports ====================================================
  */
 
-module.exports = { Game, User, GameResultReq, GameCoinSettleReq }
+module.exports = { GamePairing, Game, User, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }

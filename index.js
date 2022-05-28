@@ -10,19 +10,17 @@ const { v4: uuidv4 } = require('uuid');
 
 const API_URL = "https://api.italkutalk.com/api/"
 
-var system = new Map() //各個房間的玩家基本資料含房間資訊
-var timerGroup = new Map() //存放各個房間的時間倒數計時
-var waitingGroup = new Map() //存放檢查是否還在線倒數計時
-
-const dataMap = new Map(); //正常連線後，儲存 socket.id 對應到的 userID 及 roomID，斷線後清除
-const matchMap = new Map();
+const system = new Map() //各個房間的玩家基本資料含房間資訊
+const timerGroup = new Map() //存放各個房間的時間倒數計時
+const waitingGroup = new Map() //存放檢查是否還在線倒數計時
+var pairingGroup = []; //配對資料，正常連線後，儲存 socket.id 對應到的 userID 及 roomID，斷線後清除
 
 /**
  * Enum
  */
 
 //遊戲模式
-const GameMode = Object.freeze({"Racing": 1, "multiplication": 2})
+const GameMode = Object.freeze({"Racing": 1, "Multiplication": 2})
 //遊戲狀態
 const GameStatus = Object.freeze({"WaitingQuestion": -3, "WaitingAnswer": -2, "JudgeCheck": -1, "Answering": 0, "Leave": 1,})
 //遊戲結束狀態
@@ -55,31 +53,69 @@ app.get('/a', (req, res) => {
  */
 
 io.on('connection', (socket) => {
-  let startTime = new Date();
   console.log("------------------------------------------------------------------------------------------")
   console.log('user connected ' + 'socketID: ' + socket.id);
-  console.log('time' + startTime)
+  console.log('time' + new Date())
 
-  //進入點
-  socket.on('join', (data) => {
+/**
+ * Pairing
+ */
+
+  socket.on("join_pairing", (data) => {
     let obj = JSON.parse(data)
-    socketLog(true, "join", obj)
+    socketLog(true, "join_pairing", obj)
 
-    let roomID = "7c0d991d-d72a-4b2b-a98d-1f64f760730a" //暫時寫死
+    if (system.size >= 1) {
+      // 判斷是否已在遊戲中
+      for (let [_, data] of system) {
+        const { userA, userB } = data;
 
-    socket.join(roomID)
+        if (userA === obj.userID || userB === obj.userID) {
+          console.log(`${obj.userID} Repeat pairing`)
+          socket.emit("error", {errorMessage: "Repeat pairing"})
+          socket.disconnect()
+          return  
+        }
+      }
+    }
+    // 是否已存在配對中，單一使用者同時只能配對一個
+    if (pairingGroup.some(it => it.user == obj.userID)) {
+      console.log(`${obj.userID} Repeat connection`)
+      socket.emit("error", {errorMessage: "Repeat connection"})
+      socket.disconnect()
+      return
+    }
 
-    let res = {roomID: roomID, userA: "B501D4F601276CA77928E4D7C2C2E61E1D75B8BD", userB: "68F1191C147B0DEFA029C5EB8574FDE7FD14F4B4", videoID: "https://www.youtube.com/watch?v=-aMdBA00Ijc", _id: "60f0185123475d0d204b3605"}
-        
-    if (!system.has(roomID)) {
-      let list = []
-      list.push(new myClass.User("B501D4F601276CA77928E4D7C2C2E61E1D75B8BD", "socketID-a", 0, 0, GameStatus.WaitingQuestion, 0, 0))
-      list.push(new myClass.User("68F1191C147B0DEFA029C5EB8574FDE7FD14F4B4", "socketID-b", 0, 0, GameStatus.WaitingQuestion, 0, 0))
-      system.set(roomID, new myClass.Game("https://www.youtube.com/watch?v=KZbswFDOOsY", 15, 2, GameMode.Racing, 0, 10, list))
-    }   
+    let gameMode
+    if (obj.gameMode == 2) {
+      gameMode = GameMode.Multiplication
+    } else {
+      gameMode = GameMode.Racing
+    }
 
-    io.emit('matched', res)
-    socketLog(false, "matched", res)
+    pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
+
+    let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
+    console.log(pairingGroup)
+    if (opponent != undefined) {
+          let roomID = uuidv4();
+
+          let list = []
+          list.push(new myClass.User(obj.userID, socket.id, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
+          list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
+          system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
+          
+          pairingGroup = pairingGroup.filter(it => it.userID != obj.userID || it.userID != opponent.userID)
+
+          httpPost("game/question/get", new myClass.GameQuestionGetReq(roomID, obj.language))
+    }
+  })
+
+  //加入房間
+  socket.on('join_room', (data) => {
+    let obj = JSON.parse(data)
+    socket.join(obj.roomID)
+    log("join_room", data)
   })
 
   /**
@@ -244,17 +280,6 @@ function judge(roomID) {
   }, 500)
 }
 
-// Log
-function socketLog(isOn, key, res) {
-  console.log("------------------------------------------------------------------------------------------")
-  if (isOn) {
-    console.log("<< socket.on -> " + key + " >>")
-  } else {
-    console.log("<< socket.emit -> " + key + " >>")
-  }
-  console.log(res)
-}
-
 //連線逾時
 function connectTimeOut(roomID) {
   console.log("------------------------------------------------------------------------------------------")
@@ -396,6 +421,27 @@ function coinSettlement(roomID) {
 }
 
 /**
+ * other function
+ */
+
+// Log for socket funciotn
+function socketLog(isOn, key, res) {
+  console.log("------------------------------------------------------------------------------------------")
+  if (isOn) {
+    console.log("<< socket.on -> " + key + " >>")
+  } else {
+    console.log("<< socket.emit -> " + key + " >>")
+  }
+  console.log(res)
+}
+
+// Log for common function
+function log(key, res) {
+  console.log("------------------------------------------------------------------------------------------")
+  console.log(`<< ${key} >>\n${res}`)
+}
+
+/**
  * API 相關
  */
 
@@ -409,8 +455,27 @@ async function httpPost(url, data) {
     }
   }
 
-  let temp = await post();
-  apiConsole(false, API_URL + url, temp)
+  var temp = await post()
+  ResponseData(url, temp)
+}
+
+function ResponseData(url, obj) {
+  apiConsole(false, API_URL + url, obj)
+  switch (url) {
+    case 'game/question/get':
+      let room = system.get(obj.roomID)
+
+      if (room === undefined) { return }
+      let data = {roomID: obj.roomID, userA: room.users[0].userID, userB: room.users[1].userID, videoID: obj.videoID, _id: obj._id}
+      io.to(room.users[0].socketID).emit("matched", data)
+      io.to(room.users[1].socketID).emit("matched", data)
+      socketLog(false, "matched", data)
+
+      break;
+
+    default:
+      break;
+  }
 }
 
 function apiConsole(isReq, httpUrl, data) {
