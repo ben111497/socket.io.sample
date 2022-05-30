@@ -1,5 +1,5 @@
 const express = require('express');
-const myClass = require('./class')
+const myClass = require('./class');
 const axios = require('axios');
 const app = express();
 const http = require('http');
@@ -7,12 +7,15 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 const { v4: uuidv4 } = require('uuid');
+const { jsonp, json } = require('express/lib/response');
 
 const API_URL = "https://api.italkutalk.com/api/"
 
-const system = new Map() //各個房間的玩家基本資料含房間資訊
-const timerGroup = new Map() //存放各個房間的時間倒數計時
-const waitingGroup = new Map() //存放檢查是否還在線倒數計時
+const system = new Map() //各個房間的玩家基本資料含房間資訊 <key: String, value: Game>
+const timerGroup = new Map() //存放各個房間的時間倒數計時 <key: String, value: timer>
+const waitingGroup = new Map() //存放檢查是否還在線倒數計時 <key: String, value: timer>
+
+const pairingCheckGroup = new Map(); //確認配對中的人是否存在 <key: String, value: timer>
 var pairingGroup = []; //配對資料，正常連線後，儲存 socket.id 對應到的 userID 及 roomID，斷線後清除
 
 /**
@@ -27,6 +30,8 @@ const GameStatus = Object.freeze({"WaitingQuestion": -3, "WaitingAnswer": -2, "J
 const GameConnect = Object.freeze({"Leave": 1, "Bust": 2, "QuestionEnd": 3, "Disconnect": 4})
 //遊戲結算狀態
 const GameResult = Object.freeze({"Win": 0, "Loss": 1, "Draw": 2})
+//異常狀態
+const GameError = Object.freeze({"RepeatConnection": 0, "Gaming": 1})
 
 /**
  * 路由
@@ -39,6 +44,18 @@ app.get('/', (req, res) => {
 app.get('/a', (req, res) => {
   res.sendFile(__dirname + '/clientA.html');
 });
+
+app.get('/pairing/info', (req, res) => {
+  res.send(pairingGroup)
+})
+
+app.get('/pairing/reset', (req, res) => {
+  for (let i of pairingGroup) {
+    io.to(i.socketID).emit('system_reset', {userID: i.userID})
+  }
+  pairingGroup = []
+  res.send("restart")
+})
 
 /**
  * 連線 port 設定
@@ -67,23 +84,20 @@ io.on('connection', (socket) => {
 
     if (system.size >= 1) {
       // 判斷是否已在遊戲中
-      for (let [_, data] of system) {
-        const { userA, userB } = data;
-
-        if (userA === obj.userID || userB === obj.userID) {
-          console.log(`${obj.userID} Repeat pairing`)
-          socket.emit("error", {errorMessage: "Repeat pairing"})
-          socket.disconnect()
-          return  
+      for (let [_, value] of system) {
+        if (value.users.some(it => it.userID == obj.userID)) {
+          socket.emit("error", {status: GameError.Gaming})
+          return 
         }
       }
     }
-    // 是否已存在配對中，單一使用者同時只能配對一個
-    if (pairingGroup.some(it => it.user == obj.userID)) {
-      console.log(`${obj.userID} Repeat connection`)
-      socket.emit("error", {errorMessage: "Repeat connection"})
-      socket.disconnect()
-      return
+
+    // 是否已存在配對中，新來的會把舊的踢除
+    let info = pairingGroup.find(it => it.userID == obj.userID)
+    if (info != undefined) {
+      io.to(info.socketID).emit("error", {status: GameError.RepeatConnection})
+      pairingGroup = pairingGroup.filter(it => it.userID != obj.userID)
+      socketLog(false, "error", {status: GameError.RepeatConnection})
     }
 
     let gameMode
@@ -96,26 +110,94 @@ io.on('connection', (socket) => {
     pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
 
     let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
-    console.log(pairingGroup)
     if (opponent != undefined) {
-          let roomID = uuidv4();
+          let roomID = uuidv4()
 
           let list = []
           list.push(new myClass.User(obj.userID, socket.id, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
           list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
           system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
           
-          pairingGroup = pairingGroup.filter(it => it.userID != obj.userID || it.userID != opponent.userID)
+          let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
+          pairingCheckGroup.set(roomID, new myClass.GamePairingCheck([], obj.language, timer))
 
-          httpPost("game/question/get", new myClass.GameQuestionGetReq(roomID, obj.language))
+          socket.emit('pairing_check', {roomID: roomID})
+          io.to(opponent.socketID).emit('pairing_check', {roomID: roomID})
+          socketLog(false, "pairing_check", {roomID: roomID})
     }
   })
+
+  //經由玩家確認過後強制剔除遊戲中玩家，並加入列隊
+  socket.on('force_join', (data) => {
+    let obj = JSON.parse(data)
+    
+    for (let [roomID, value] of system) {
+      if (value.users.some(it => it.userID == obj.userID)) {
+        system.get(roomID).users.find(it => it.userID == obj.userID).status = GameStatus.Leave
+        userLeaveGame(roomID, obj.userID, true)
+
+        let gameMode
+        if (obj.gameMode == 2) {
+          gameMode = GameMode.Multiplication
+        } else {
+          gameMode = GameMode.Racing
+        }
+
+        pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
+
+        let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
+        if (opponent != undefined) {
+              let roomID = uuidv4()
+
+              let list = []
+              list.push(new myClass.User(obj.userID, socket.id, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
+              list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
+              system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
+              
+              let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
+              pairingCheckGroup.set(roomID, new myClass.GamePairingCheck([], obj.language, timer))
+
+              socket.emit('pairing_check', {roomID: roomID})
+              io.to(opponent.socketID).emit('pairing_check', {roomID: roomID})
+              socketLog(false, "pairing_check", {roomID: roomID})
+        }
+
+        return
+      }
+    }
+  })
+
+  //確認配對者是否有回應，前端有時候週期會出錯沒有退出連線
+  // data => userID: String, roomID: String
+  socket.on('pairing_check', (data) => {
+    let obj = JSON.parse(data)
+
+    let room = pairingCheckGroup.get(obj.roomID)
+    let language = room.language
+
+    if (room === undefined) { return }
+    if (room.users.some(it => it == obj.userID)) { return }
+    room.users.push(obj.userID)
+
+    if (room.users.length == 2) {
+      clearTimeout(room.timer)
+      pairingGroup = pairingGroup.filter(it => it.userID != room.users[0] && it.userID != room.users[1])
+      httpPost("game/question/get", new myClass.GameQuestionGetReq(obj.roomID, language))
+    }
+  }) 
 
   //加入房間
   socket.on('join_room', (data) => {
     let obj = JSON.parse(data)
     socket.join(obj.roomID)
     log("join_room", data)
+  })
+
+  //配對成功前離開
+  socket.on('leave', (data) => {
+    let obj = JSON.parse(data)
+    pairingGroup = pairingGroup.filter(it => it.userID != obj.userID)
+    socketLog(true, "leave", data)
   })
 
   /**
@@ -192,7 +274,7 @@ io.on('connection', (socket) => {
 
     room.users.find(it => it.userID == obj.userID).status = GameStatus.Leave
 
-    userLeaveGame(obj.roomID, obj.userID)
+    userLeaveGame(obj.roomID, obj.userID, false)
   }) 
 
 });
@@ -300,8 +382,22 @@ function connectTimeOut(roomID) {
   system.delete(roomID)
 }
 
+function pairingCheckTimeOut(roomID, userA, userB) {
+  system.delete(roomID)
+
+  let room = pairingCheckGroup.get(roomID)
+  if (room != undefined) {
+    clearTimeout(room.timer)
+
+    if (!room.users.some(it => it == userA)) pairingGroup = pairingGroup.filter(it => it.userID != userA)
+    if (!room.users.some(it => it == userB)) pairingGroup = pairingGroup.filter(it => it.userID != userB)
+
+    pairingCheckGroup.delete(roomID)
+  }
+}
+
 //離開遊戲
-function userLeaveGame(roomID, userID) {
+function userLeaveGame(roomID, userID, isForceLeave) {
   console.log("------------------------------------------------------------------------------------------")
   console.log("<< function -> userLeaveGame >>")
 
@@ -312,12 +408,21 @@ function userLeaveGame(roomID, userID) {
   let room = system.get(roomID)
   if (room === undefined) { return }
 
-  room.users.find(it => it.userID == userID).loss++
-  room.users.find(it => it.userID != userID).win++
+  let leaveUser = room.users.find(it => it.userID == userID)
+  let otherUser = room.users.find(it => it.userID != userID)
+
+  leaveUser.loss++
+  otherUser.win++
 
   coinSettlement(roomID)
 
-  io.in(roomID).emit('room_game_end', {roomID: roomID, userID: userID, status: GameConnect.Leave})
+  if (isForceLeave) {
+    io.to(leaveUser.socketID).emit('force_leave', {roomID: roomID, userID: userID, status: GameConnect.Leave})
+    io.to(otherUser.socketID).emit('room_game_end', {roomID: roomID, userID: userID, status: GameConnect.Leave})
+  } else {
+    io.in(roomID).emit('room_game_end', {roomID: roomID, userID: userID, status: GameConnect.Leave})
+  }
+
   socketLog(false, "room_game_end", {roomID: roomID, userID: userID, status: GameConnect.Leave})
 
   system.delete(roomID)
@@ -438,7 +543,8 @@ function socketLog(isOn, key, res) {
 // Log for common function
 function log(key, res) {
   console.log("------------------------------------------------------------------------------------------")
-  console.log(`<< ${key} >>\n${res}`)
+  console.log(`<< ${key} >>`)
+  console.log(res)
 }
 
 /**

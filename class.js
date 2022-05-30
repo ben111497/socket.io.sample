@@ -3,7 +3,7 @@
  */
 
 // 遊戲配對
-// socketId: String, userID: String, language: Int, antes: Int, gameMode: GameStatus
+// socketID: String, userID: String, language: Int, antes: Int, gameMode: GameStatus
 class GamePairing {
     constructor(socketID, userID, language, antes, rates, coin, gameMode) {
         this.socketID = socketID;
@@ -13,6 +13,16 @@ class GamePairing {
         this.rates = rates;
         this.coin = coin;
         this.gameMode = gameMode;
+    }
+}
+
+//遊戲配對確認
+//user: Array<String>, language: Int, timer: Timer
+class GamePairingCheck {
+    constructor(users, language, timer) {
+        this.users = users;
+        this.language = language;
+        this.timer = timer;
     }
 }
 
@@ -85,4 +95,4 @@ class GameQuestionGetReq {
  * ==================================================== module.exports ====================================================
  */
 
-module.exports = { GamePairing, Game, User, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
+module.exports = { GamePairing, GamePairingCheck, Game, User, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
