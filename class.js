@@ -43,14 +43,27 @@ class Game {
 // 使用者遊戲資料 格式：Array
 // userID: String, socketID: String, coin: Int, remainTime: Int, status: GameStatus
 class User {
-    constructor(userID, socketID, coin, remainTime, status, win, loss) {
+    constructor(userID, socketID, originCoin, currentCoin, remainTime, status, win, loss) {
         this.userID = userID;
         this.socketID = socketID;
-        this.coin = coin;
+        this.originCoin = originCoin;
+        this.currentCoin = currentCoin;
         this.remainTime = remainTime;
         this.status = status;
         this.win = win;
         this.loss = loss;
+    }
+}
+
+// 遊戲結果回傳 room
+// roomID: String, userID: String, originCoin: Int, currentCoin: Int, status: Int
+class GameResult {
+    constructor(roomID, userID, originCoin, currentCoin, status) {
+        this.roomID = roomID;
+        this.userID = userID;
+        this.originCoin = originCoin;
+        this.currentCoin = currentCoin;
+        this.status = status;
     }
 }
 
@@ -95,4 +108,4 @@ class GameQuestionGetReq {
  * ==================================================== module.exports ====================================================
  */
 
-module.exports = { GamePairing, GamePairingCheck, Game, User, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
+module.exports = { GamePairing, GamePairingCheck, Game, User,GameResult, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
