@@ -316,7 +316,7 @@ function judge(roomID) {
 
   var userA = room.users[0]
   var userB = room.users[1]
-  let coin = room.antes * room.rates
+  let coin = room.rates  //金額待定
 
   userA.status = GameStatus.JudgeCheck
   userB.status = GameStatus.JudgeCheck
@@ -415,8 +415,8 @@ function userLeaveGame(roomID, userID, isForceLeave) {
   leaveUser.loss++
   otherUser.win++
 
-  leaveUser.currentCoin -= room.rates * room.antes
-  otherUser.currentCoin += room.rates * room.antes
+  leaveUser.currentCoin -= room.rates  //金額待定
+  otherUser.currentCoin += room.rates  //金額待定
 
   coinSettlement(roomID)
 

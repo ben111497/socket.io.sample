@@ -96,11 +96,11 @@ class GameCoinSettleReq {
 }
 
 // 取得題目
-// roomID: String, languae: Int
+// roomID: String, language: Int
 class GameQuestionGetReq {
-    constructor(roomID, languae) {
+    constructor(roomID, language) {
         this.roomID = roomID;
-        this.languae = languae;
+        this.language = language;
     }
 }
 
