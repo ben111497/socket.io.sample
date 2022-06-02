@@ -41,20 +41,43 @@ app.get('/', (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
 });
 
+//導向網頁 "沒有功能"
 app.get('/a', (req, res) => {
   res.sendFile(__dirname + '/clientA.html');
 });
 
+//get 方式使用 userID 移除列隊
+app.get('/pairing/remove', (req, res) => {
+  let url = new URL(API_URL + req._parsedUrl.href)
+  let userID = url.searchParams.get('userID')
+  let data = pairingGroup.find(it => it.userID == userID)
+
+  if (data === undefined) {
+    res.send("Not found")
+  } else {
+    io.to(data.socketID).emit('system_reset', {userID: data.userID})
+    res.send(`Remove data: ${JSON.stringify(data)}`)
+    pairingGroup = pairingGroup.filter(it => it.userID != userID)
+  }
+});
+
+//取得列隊中的使用者資料
 app.get('/pairing/info', (req, res) => {
   res.send(pairingGroup)
 })
 
+//清除全部列隊中的玩家
 app.get('/pairing/reset', (req, res) => {
   for (let i of pairingGroup) {
     io.to(i.socketID).emit('system_reset', {userID: i.userID})
   }
   pairingGroup = []
   res.send("restart")
+})
+
+//取得列隊中的使用者資料
+app.get('/gaming/info', (req, res) => {
+  res.send(system)
 })
 
 /**
