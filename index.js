@@ -47,6 +47,7 @@ app.get('/a', (req, res) => {
 });
 
 //get 方式使用 userID 移除列隊
+//http://192.168.0.179:8082/pairing/remove?userID=...
 app.get('/pairing/remove', (req, res) => {
   let url = new URL(API_URL + req._parsedUrl.href)
   let userID = url.searchParams.get('userID')
@@ -62,11 +63,13 @@ app.get('/pairing/remove', (req, res) => {
 });
 
 //取得列隊中的使用者資料
+//http://192.168.0.179:8082/pairing/info
 app.get('/pairing/info', (req, res) => {
   res.send(pairingGroup)
 })
 
 //清除全部列隊中的玩家
+//http://192.168.0.179:8082/pairing/reset
 app.get('/pairing/reset', (req, res) => {
   for (let i of pairingGroup) {
     io.to(i.socketID).emit('system_reset', {userID: i.userID})
@@ -76,6 +79,7 @@ app.get('/pairing/reset', (req, res) => {
 })
 
 //取得列隊中的使用者資料
+//http://192.168.0.179:8082/gaming/info
 app.get('/gaming/info', (req, res) => {
   res.send(system)
 })
@@ -154,39 +158,40 @@ io.on('connection', (socket) => {
   socket.on('force_join', (data) => {
     let obj = JSON.parse(data)
     
+    //踢除動作處理
     for (let [roomID, value] of system) {
       if (value.users.some(it => it.userID == obj.userID)) {
         system.get(roomID).users.find(it => it.userID == obj.userID).status = GameStatus.Leave
         userLeaveGame(roomID, obj.userID, true)
-
-        let gameMode
-        if (obj.gameMode == 2) {
-          gameMode = GameMode.Multiplication
-        } else {
-          gameMode = GameMode.Racing
-        }
-
-        pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
-
-        let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
-        if (opponent != undefined) {
-              let roomID = uuidv4()
-
-              let list = []
-              list.push(new myClass.User(obj.userID, socket.id, obj.coin, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
-              list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
-              system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
-              
-              let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
-              pairingCheckGroup.set(roomID, new myClass.GamePairingCheck([], obj.language, timer))
-
-              socket.emit('pairing_check', {roomID: roomID})
-              io.to(opponent.socketID).emit('pairing_check', {roomID: roomID})
-              socketLog(false, "pairing_check", {roomID: roomID})
-        }
-
-        return
+        break;
       }
+    }
+
+    //加入列隊處理
+    let gameMode
+    if (obj.gameMode == 2) {
+      gameMode = GameMode.Multiplication
+    } else {
+      gameMode = GameMode.Racing
+    }
+
+    pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
+
+    let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
+    if (opponent != undefined) {
+          let roomID = uuidv4()
+
+          let list = []
+          list.push(new myClass.User(obj.userID, socket.id, obj.coin, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
+          list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
+          system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
+          
+          let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
+          pairingCheckGroup.set(roomID, new myClass.GamePairingCheck([], obj.language, timer))
+
+          socket.emit('pairing_check', {roomID: roomID})
+          io.to(opponent.socketID).emit('pairing_check', {roomID: roomID})
+          socketLog(false, "pairing_check", {roomID: roomID})
     }
   })
 
