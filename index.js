@@ -15,7 +15,7 @@ const system = new Map() //各個房間的玩家基本資料含房間資訊 <key
 const timerGroup = new Map() //存放各個房間的時間倒數計時 <key: String, value: timer>
 const waitingGroup = new Map() //存放檢查是否還在線倒數計時 <key: String, value: timer>
 
-const pairingCheckGroup = new Map(); //確認配對中的人是否存在 <key: String, value: timer>
+var pairingCheckGroup = []; //確認配對中的人是否存在 <key: String, value: timer>
 var pairingGroup = []; //配對資料，正常連線後，儲存 socket.id 對應到的 userID 及 roomID，斷線後清除 <class: GamePairing>
 
 /**
@@ -31,7 +31,7 @@ const GameConnect = Object.freeze({"Leave": 1, "Bust": 2, "QuestionEnd": 3, "Dis
 //遊戲結算狀態
 const GameResult = Object.freeze({"Win": 0, "Loss": 1, "Draw": 2})
 //異常狀態
-const GameError = Object.freeze({"RepeatConnection": 0, "Gaming": 1})
+const GameError = Object.freeze({"RepeatConnection": 0, "Gaming": 1, "JudgeCheckTimeOut": 2, "NotExist": 3})
 
 /**
  * 路由
@@ -136,17 +136,17 @@ io.on('connection', (socket) => {
 
     pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
 
-    let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
+    let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language 
+      && it.antes == obj.antes && it.gameMode == gameMode && !pairingCheckGroup.some(it => it.userA == obj.userID || it.userB == obj.user))
     if (opponent != undefined) {
           let roomID = uuidv4()
-
           let list = []
           list.push(new myClass.User(obj.userID, socket.id, obj.coin, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
           list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
           system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
           
           let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
-          pairingCheckGroup.set(roomID, new myClass.GamePairingCheck([], obj.language, timer))
+          pairingCheckGroup.push(new myClass.GamePairingCheck(roomID, [obj.userID, opponent.userID], [], obj.language, timer))
 
           socket.emit('pairing_check', {roomID: roomID})
           io.to(opponent.socketID).emit('pairing_check', {roomID: roomID})
@@ -177,7 +177,9 @@ io.on('connection', (socket) => {
 
     pairingGroup.push(new myClass.GamePairing(socket.id, obj.userID, obj.language, obj.antes, obj.rates, obj.coin, gameMode))
 
-    let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language && it.antes == obj.antes && it.gameMode == gameMode)
+    let opponent = pairingGroup.find(it => it.userID != obj.userID && it.language == obj.language 
+      && it.antes == obj.antes && it.gameMode == gameMode && !pairingCheckGroup.some(it => it.userA == obj.userID || it.userB == obj.user))
+
     if (opponent != undefined) {
           let roomID = uuidv4()
 
@@ -187,7 +189,7 @@ io.on('connection', (socket) => {
           system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
           
           let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
-          pairingCheckGroup.set(roomID, new myClass.GamePairingCheck([], obj.language, timer))
+          pairingCheckGroup.push(new myClass.GamePairingCheck(roomID, [obj.userID, opponent.userID], [], obj.language, timer))
 
           socket.emit('pairing_check', {roomID: roomID})
           io.to(opponent.socketID).emit('pairing_check', {roomID: roomID})
@@ -200,17 +202,17 @@ io.on('connection', (socket) => {
   socket.on('pairing_check', (data) => {
     let obj = JSON.parse(data)
 
-    let room = pairingCheckGroup.get(obj.roomID)
-    let language = room.language
+    let room = pairingCheckGroup.find(it => it.roomID == obj.roomID)
 
     if (room === undefined) { return }
-    if (room.users.some(it => it == obj.userID)) { return }
-    room.users.push(obj.userID)
+    if (room.checkedUser.some(it => it == obj.userID)) { return }
+    room.checkedUser.push(obj.userID)
 
-    if (room.users.length == 2) {
+    if (room.checkedUser.length == 2) {
       clearTimeout(room.timer)
       pairingGroup = pairingGroup.filter(it => it.userID != room.users[0] && it.userID != room.users[1])
-      httpPost("game/question/get", new myClass.GameQuestionGetReq(obj.roomID, language))
+      pairingCheckGroup = pairingCheckGroup.filter(it => it.roomID != obj.roomID)
+      httpPost("game/question/get", new myClass.GameQuestionGetReq(obj.roomID, room.language))
     }
   }) 
 
@@ -275,20 +277,24 @@ io.on('connection', (socket) => {
     let obj = JSON.parse(data)
     socketLog(true, "room_judge_check", obj)
 
+    let waitingRoom = waitingGroup.get(obj.roomID)
+    if (waitingRoom === undefined) { 
+      socket.emit("error", {status: GameError.JudgeCheckTimeOut})
+      return 
+    }
+
     let room = system.get(obj.roomID)
-    if (room === undefined) { return }
+    if (room === undefined) { 
+      socket.emit("error", {status: GameError.NotExist})
+      return
+    }
 
     room.users.find(it => it.userID == obj.userID).status = GameStatus.WaitingAnswer
 
-    if (waitingGroup.has(obj.roomID)) {
-      clearTimeout(waitingGroup.get(obj.roomID))
+    if (!waitingRoom.users.some(it => it == obj.userID)) { waitingRoom.users.push(obj.userID) } 
+    if (waitingRoom.users.length == 2) {
+      clearTimeout(waitingRoom.timer)
       waitingGroup.delete(obj.roomID)
-    } else {
-      const timer = setTimeout(() => connectTimeOut(obj.roomID), 5000)
-      waitingGroup.set(obj.roomID, timer)
-    }
-
-    if (room.users.filter(it => it.status == GameStatus.WaitingAnswer).length == 2) {
       gameStart(obj.roomID)
     }
   })
@@ -299,13 +305,15 @@ io.on('connection', (socket) => {
     socketLog(true, "room_leave", obj)
 
     let room = system.get(obj.roomID)
-    if (room === undefined) { return }
+    if (room === undefined) { 
+      socket.emit("error", {status: GameError.NotExist})
+      return 
+    }
 
     room.users.find(it => it.userID == obj.userID).status = GameStatus.Leave
 
     userLeaveGame(obj.roomID, obj.userID, false)
   }) 
-
 });
 
 /**
@@ -340,7 +348,10 @@ function judge(roomID) {
   }
  
   let room = system.get(roomID)
-  if (room === undefined) { return }
+  if (room === undefined) { 
+    socket.emit("error", {status: GameError.NotExist})
+    return
+  }
 
   var userA = room.users[0]
   var userB = room.users[1]
@@ -367,6 +378,9 @@ function judge(roomID) {
       } else if (userB.currentCoin <= 0) { 
         coinNotEnough(roomID, userB.userID) 
         userB.currentCoin = 0
+      } else {
+        const timer = setTimeout(() => connectTimeOut(roomID), 5000)
+        waitingGroup.set(roomID, new myClass.GameJudgeCheck([], timer))
       }
     } else if (userA.remainTime < userB.remainTime) {
       userA.currentCoin -= coin
@@ -383,12 +397,20 @@ function judge(roomID) {
       } else if (userA.currentCoin <= 0) { 
         coinNotEnough(roomID, userA.userID) 
         userA.currentCoin = 0
+      } else {
+        const timer = setTimeout(() => connectTimeOut(roomID), 5000)
+        waitingGroup.set(roomID, new myClass.GameJudgeCheck([], timer))
       }
     } else {
       io.in(roomID).emit('room_judge', {roomID: roomID, coin: 0, winUserID: ""})
       socketLog(false, "room_judge", {roomID: roomID, coin: 0, winUserID: ""})
 
-      if (room.questionIndex >= room.questionCount) { questionEnd(roomID) }
+      if (room.questionIndex >= room.questionCount) { 
+        questionEnd(roomID) 
+      } else {
+        const timer = setTimeout(() => connectTimeOut(roomID), 5000)
+        waitingGroup.set(roomID, new myClass.GameJudgeCheck([], timer))
+      }
     }
   }, 500)
 }
@@ -398,7 +420,11 @@ function connectTimeOut(roomID) {
   console.log("------------------------------------------------------------------------------------------")
   console.log("<< function -> connectTimeOut >>")
 
-  waitingGroup.delete(roomID)
+  waitingRoom = waitingGroup.get(roomID)
+  if (waitingRoom != undefined) {
+    clearTimeout(waitingRoom.timer)
+    waitingGroup.delete(roomID)
+  }
 
   let room = system.get(roomID)
   if (room === undefined) { return }
@@ -416,15 +442,15 @@ function connectTimeOut(roomID) {
 function pairingCheckTimeOut(roomID, userA, userB) {
   system.delete(roomID)
 
-  let room = pairingCheckGroup.get(roomID)
-  if (room != undefined) {
-    clearTimeout(room.timer)
+  let room = pairingCheckGroup.find(it => it.roomID == roomID)
+  if (room === undefined) { return }
 
-    if (!room.users.some(it => it == userA)) pairingGroup = pairingGroup.filter(it => it.userID != userA)
-    if (!room.users.some(it => it == userB)) pairingGroup = pairingGroup.filter(it => it.userID != userB)
+  clearTimeout(room.timer)
 
-    pairingCheckGroup.delete(roomID)
-  }
+  if (!room.checkedUser.some(it => it == userA)) pairingGroup = pairingGroup.filter(it => it.userID != userA)
+  if (!room.checkedUser.some(it => it == userB)) pairingGroup = pairingGroup.filter(it => it.userID != userB)
+
+  pairingCheckGroup = pairingCheckGroup.filter(it => it.roomID != roomID)
 }
 
 //離開遊戲
@@ -591,9 +617,11 @@ function ResponseData(url, obj) {
   apiConsole(false, API_URL + url, obj)
   switch (url) {
     case 'game/question/get':
-      let room = system.get(obj.roomID)
+      pairingCheckGroup = pairingCheckGroup.filter(it => it.roomID != obj.roomID)
 
+      let room = system.get(obj.roomID)
       if (room === undefined) { return }
+      
       let data = {roomID: obj.roomID, userA: room.users[0].userID, userB: room.users[1].userID, videoID: obj.videoID, _id: obj._id}
       io.to(room.users[0].socketID).emit("matched", data)
       io.to(room.users[1].socketID).emit("matched", data)

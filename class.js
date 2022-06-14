@@ -19,8 +19,10 @@ class GamePairing {
 //遊戲配對確認
 //user: Array<String>, language: Int, timer: Timer
 class GamePairingCheck {
-    constructor(users, language, timer) {
+    constructor(roomID, users, checkedUser, language, timer) {
+        this.roomID = roomID;
         this.users = users;
+        this.checkedUser = checkedUser;
         this.language = language;
         this.timer = timer;
     }
@@ -52,6 +54,15 @@ class User {
         this.status = status;
         this.win = win;
         this.loss = loss;
+    }
+}
+
+// 使用者遊戲資料 格式：Map -> ker: roomID, value: GameJudgeCheck
+// users: ArrayList<String>, timer: Timer
+class GameJudgeCheck {
+    constructor(users, timer) {
+        this.users = users;
+        this.timer = timer;
     }
 }
 
@@ -108,4 +119,4 @@ class GameQuestionGetReq {
  * ==================================================== module.exports ====================================================
  */
 
-module.exports = { GamePairing, GamePairingCheck, Game, User,GameResult, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
+module.exports = { GamePairing, GamePairingCheck, Game, User, GameJudgeCheck, GameResult, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
