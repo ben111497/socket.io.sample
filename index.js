@@ -78,7 +78,7 @@ app.get('/pairing/reset', (req, res) => {
   res.send("restart")
 })
 
-//取得列隊中的使用者資料
+//取得遊戲中的使用者資料
 //http://192.168.0.179:8082/gaming/info
 app.get('/gaming/info', (req, res) => {
   res.send(system)
@@ -100,6 +100,8 @@ io.on('connection', (socket) => {
   console.log("------------------------------------------------------------------------------------------")
   console.log('user connected ' + 'socketID: ' + socket.id);
   console.log('time' + new Date())
+
+  socket.emit("connected", {});
 
 /**
  * Pairing
