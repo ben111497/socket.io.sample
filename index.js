@@ -107,8 +107,7 @@ io.on('connection', (socket) => {
  * Pairing
  */
   //加入配對
-  socket.on("join_pairing", (data) => {
-    let obj = JSON.parse(data)
+  socket.on("join_pairing", (obj) => {
     socketLog(true, "join_pairing", obj)
 
     // 判斷是否已在遊戲中
@@ -157,9 +156,7 @@ io.on('connection', (socket) => {
   })
 
   //經由玩家確認過後強制剔除遊戲中玩家，並加入列隊
-  socket.on('force_join', (data) => {
-    let obj = JSON.parse(data)
-    
+  socket.on('force_join', (obj) => {
     //踢除動作處理
     for (let [roomID, value] of system) {
       if (value.users.some(it => it.userID == obj.userID)) {
@@ -201,9 +198,7 @@ io.on('connection', (socket) => {
 
   //確認配對者是否有回應，前端有時候週期會出錯沒有退出連線
   // data => userID: String, roomID: String
-  socket.on('pairing_check', (data) => {
-    let obj = JSON.parse(data)
-
+  socket.on('pairing_check', (obj) => {
     let room = pairingCheckGroup.find(it => it.roomID == obj.roomID)
 
     if (room === undefined) { return }
@@ -219,17 +214,15 @@ io.on('connection', (socket) => {
   }) 
 
   //加入房間
-  socket.on('join_room', (data) => {
-    let obj = JSON.parse(data)
+  socket.on('join_room', (obj) => {
     socket.join(obj.roomID)
-    log("join_room", data)
+    log("join_room", obj)
   })
 
   //配對成功前離開
-  socket.on('leave', (data) => {
-    let obj = JSON.parse(data)
+  socket.on('leave', (obj) => {
     pairingGroup = pairingGroup.filter(it => it.userID != obj.userID)
-    socketLog(true, "leave", data)
+    socketLog(true, "leave", obj)
   })
 
   /**
@@ -237,8 +230,7 @@ io.on('connection', (socket) => {
    */
 
   //準備完成
-  socket.on('room_isReady', (data) => {
-    let obj = JSON.parse(data)
+  socket.on('room_isReady', (obj) => {
     socketLog(true, "room_isReady", obj)
 
     let room = system.get(obj.roomID)
@@ -258,8 +250,7 @@ io.on('connection', (socket) => {
   })
 
   //答題完成
-  socket.on('room_finish', (data) => {
-    let obj = JSON.parse(data)
+  socket.on('room_finish', (obj) => {
     socketLog(true, "room_finish", obj)
 
     let room = system.get(obj.roomID)
@@ -275,8 +266,7 @@ io.on('connection', (socket) => {
   })
 
   //確認是否還在線
-  socket.on('room_judge_check', (data) => {
-    let obj = JSON.parse(data)
+  socket.on('room_judge_check', (obj) => {
     socketLog(true, "room_judge_check", obj)
 
     let waitingRoom = waitingGroup.get(obj.roomID)
@@ -302,8 +292,7 @@ io.on('connection', (socket) => {
   })
 
   //離開遊戲
-  socket.on('room_leave', (data) => {
-    let obj = JSON.parse(data)
+  socket.on('room_leave', (obj) => {
     socketLog(true, "room_leave", obj)
 
     let room = system.get(obj.roomID)
