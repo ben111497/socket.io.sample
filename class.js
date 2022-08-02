@@ -31,8 +31,9 @@ class GamePairingCheck {
 // 房間相關資訊 格式：Map -> key: roomID, valuse: GamePairing
 // roomID: String, videoID: String, antes: Int, rates: Int, gameMode: GameStatus, questionIndex: Int, questionCount: Int, users: Array<User>
 class Game {
-    constructor(videoID, antes, rates, gameMode, questionIndex, questionCount, users) {
+    constructor(videoID, _id, antes, rates, gameMode, questionIndex, questionCount, users) {
         this.videoID = videoID;
+        this._id = _id;
         this.antes = antes;
         this.rates = rates;
         this.gameMode = gameMode;
@@ -57,6 +58,16 @@ class User {
     }
 }
 
+// 每題結算時的使用者資料回傳
+// userID: String, coin: Int, win: Int
+class UserJudgeData {
+    constructor(userID, win, coin) {
+        this.userID = userID;
+        this.win = win;
+        this.coin = coin;
+    }
+}
+
 // 使用者遊戲資料 格式：Map -> ker: roomID, value: GameJudgeCheck
 // users: ArrayList<String>, timer: Timer
 class GameJudgeCheck {
@@ -66,7 +77,7 @@ class GameJudgeCheck {
     }
 }
 
-// 遊戲結果回傳 room
+// 遊戲結果回傳 room //之後移除
 // roomID: String, userID: String, originCoin: Int, currentCoin: Int, status: Int
 class GameResult {
     constructor(roomID, userID, originCoin, currentCoin, status) {
@@ -74,6 +85,31 @@ class GameResult {
         this.userID = userID;
         this.originCoin = originCoin;
         this.currentCoin = currentCoin;
+        this.status = status;
+    }
+}
+
+// 遊戲最終結果及狀態回傳 
+// roomID: String, userID: String, originCoin: Int, currentCoin: Int, ownScore: Int, 
+//  opponentScore: Int, status: Int(Enum GameResult), endStatus: GameEndStatus
+class GameEnd {
+    constructor(roomID, userID, originCoin, currentCoin, ownScore, opponentScore, status, endStatus) {
+        this.roomID = roomID;
+        this.userID = userID;
+        this.originCoin = originCoin;
+        this.currentCoin = currentCoin;
+        this.ownScore = ownScore;
+        this.opponentScore = opponentScore;
+        this.status = status;
+        this.endStatus = endStatus;
+    }
+}
+
+// 遊戲結束狀態回傳
+// userID: String, status: Int(Enum: GameConnect) 
+class GameEndStatus {
+    constructor(userID, status) {
+        this.userID = userID;
         this.status = status;
     }
 }
@@ -119,4 +155,6 @@ class GameQuestionGetReq {
  * ==================================================== module.exports ====================================================
  */
 
-module.exports = { GamePairing, GamePairingCheck, Game, User, GameJudgeCheck, GameResult, GameResultReq, GameCoinSettleReq, GameQuestionGetReq }
+module.exports = { GamePairing, GamePairingCheck, Game, User, GameJudgeCheck, 
+    UserJudgeData,  GameResult, GameEnd, GameEndStatus, GameResultReq, 
+    GameCoinSettleReq, GameQuestionGetReq }

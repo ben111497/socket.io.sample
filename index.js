@@ -27,7 +27,7 @@ const GameMode = Object.freeze({"Racing": 1, "Multiplication": 2})
 //遊戲狀態
 const GameStatus = Object.freeze({"WaitingQuestion": -3, "WaitingAnswer": -2, "JudgeCheck": -1, "Answering": 0, "Leave": 1,})
 //遊戲結束狀態
-const GameConnect = Object.freeze({"Leave": 1, "Bust": 2, "QuestionEnd": 3, "Disconnect": 4})
+const GameConnect = Object.freeze({"Leave": 1, "Bust": 2, "QuestionEnd": 3, "Disconnect": 4, "ForceLeave": 5})
 //遊戲結算狀態
 const GameResult = Object.freeze({"Win": 0, "Loss": 1, "Draw": 2})
 //異常狀態
@@ -36,7 +36,7 @@ const GameError = Object.freeze({"RepeatConnection": 0, "Gaming": 1, "JudgeCheck
 /**
  * 路由
  */
-//http://192.168.0.179:8082/
+//http://192.168.0.179:8085/
 app.get('/', (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
 });
@@ -47,7 +47,7 @@ app.get('/a', (req, res) => {
 });
 
 //get 方式使用 userID 移除列隊
-//http://192.168.0.179:8082/pairing/remove?userID=...
+//http://192.168.0.179:8085/pairing/remove?userID=...
 app.get('/pairing/remove', (req, res) => {
   let url = new URL(API_URL + req._parsedUrl.href)
   let userID = url.searchParams.get('userID')
@@ -63,33 +63,49 @@ app.get('/pairing/remove', (req, res) => {
 });
 
 //取得列隊中的使用者資料
-//http://192.168.0.179:8082/pairing/info
+//http://192.168.0.179:8500/pairing/info
 app.get('/pairing/info', (req, res) => {
+  console.log("------------------------------------------------------------------------------------------")
+  console.log(pairingGroup)
   res.send(pairingGroup)
 })
 
 //清除全部列隊中的玩家
-//http://192.168.0.179:8082/pairing/reset
+//http://192.168.0.179:8500/pairing/reset
 app.get('/pairing/reset', (req, res) => {
+  console.log("------------------------------------------------------------------------------------------")
   for (let i of pairingGroup) {
     io.to(i.socketID).emit('system_reset', {userID: i.userID})
   }
   pairingGroup = []
+  console.log("pairing restart")
   res.send("restart")
 })
 
 //取得遊戲中的使用者資料
-//http://192.168.0.179:8082/gaming/info
+//http://192.168.0.179:8085/gaming/info
 app.get('/gaming/info', (req, res) => {
-  res.send(system)
+  let data = Array.from(system.values())
+  console.log("------------------------------------------------------------------------------------------")
+  console.log(data)
+  res.send(data)
+})
+
+//取的遊戲列隊+遊戲中人數
+//http://192.168.0.179:8085/user/count
+app.get('/user/count', (req, res) => {
+  console.log("------------------------------------------------------------------------------------------")
+  console.log("gaming: " + system.size * 2)
+  console.log("pairing: " + pairingGroup.length)
+  res.send({gamingCount: system.size * 2, pairingCount: pairingGroup.length})
 })
 
 /**
  * 連線 port 設定
  */
 
- server.listen(8082, () => {
-  console.log('listening on *:8082');
+ server.listen(8500, () => {
+  console.log('listening on *:8500');
 });
 
 /**
@@ -144,7 +160,7 @@ io.on('connection', (socket) => {
           let list = []
           list.push(new myClass.User(obj.userID, socket.id, obj.coin, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
           list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
-          system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
+          system.set(roomID, new myClass.Game("", "", obj.antes, obj.rates, gameMode, 0, 1, list))
           
           let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
           pairingCheckGroup.push(new myClass.GamePairingCheck(roomID, [obj.userID, opponent.userID], [], obj.language, timer))
@@ -185,7 +201,7 @@ io.on('connection', (socket) => {
           let list = []
           list.push(new myClass.User(obj.userID, socket.id, obj.coin, obj.coin, 0, GameStatus.WaitingQuestion, 0, 0))
           list.push(new myClass.User(opponent.userID, opponent.socketID, opponent.coin, opponent.coin, 0, GameStatus.WaitingQuestion, 0, 0))
-          system.set(roomID, new myClass.Game("", obj.antes, obj.rates, gameMode, 0, 1, list))
+          system.set(roomID, new myClass.Game("", "", obj.antes, obj.rates, gameMode, 0, 1, list))
           
           let timer = setTimeout(() => pairingCheckTimeOut(roomID, obj.userID, opponent.userID), 3000)
           pairingCheckGroup.push(new myClass.GamePairingCheck(roomID, [obj.userID, opponent.userID], [], obj.language, timer))
@@ -361,8 +377,12 @@ function judge(roomID) {
       userA.win ++
       userB.loss ++
 
-      io.in(roomID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userA.userID})
-      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userA.userID})
+      let userAJudge = new myClass.UserJudgeData(userA.userID, userA.win, userA.currentCoin)
+      let userBJudge = new myClass.UserJudgeData(userB.userID, userB.win, userB.currentCoin)
+
+      io.to(userA.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userA.userID, ownData: userAJudge, opponent: userBJudge})
+      io.to(userB.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userA.userID, ownData: userBJudge, opponent: userAJudge})
+      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userA.userID, userA: userAJudge, userB: userBJudge})
 
       if (room.questionIndex >= room.questionCount) { 
         questionEnd(roomID) 
@@ -372,7 +392,7 @@ function judge(roomID) {
       } else {
         const timer = setTimeout(() => connectTimeOut(roomID), 5000)
         waitingGroup.set(roomID, new myClass.GameJudgeCheck([], timer))
-      }
+      } 
     } else if (userA.remainTime < userB.remainTime) {
       userA.currentCoin -= coin
       userB.currentCoin += coin
@@ -380,8 +400,12 @@ function judge(roomID) {
       userA.loss ++
       userB.win ++
 
-      io.in(roomID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userB.userID})
-      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userB.userID})
+      let userAJudge = new myClass.UserJudgeData(userA.userID, userA.win, userA.currentCoin)
+      let userBJudge = new myClass.UserJudgeData(userB.userID, userB.win, userB.currentCoin)
+
+      io.to(userA.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userB.userID, ownData: userAJudge, opponent: userBJudge})
+      io.to(userB.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userB.userID, ownData: userBJudge, opponent: userAJudge})
+      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userA.userID, userA: userAJudge, userB: userBJudge})
 
       if (room.questionIndex >= room.questionCount) {
          questionEnd(roomID)
@@ -393,8 +417,12 @@ function judge(roomID) {
         waitingGroup.set(roomID, new myClass.GameJudgeCheck([], timer))
       }
     } else {
-      io.in(roomID).emit('room_judge', {roomID: roomID, coin: 0, winUserID: ""})
-      socketLog(false, "room_judge", {roomID: roomID, coin: 0, winUserID: ""})
+      let userAJudge = new myClass.UserJudgeData(userA.userID, userA.win, userA.currentCoin)
+      let userBJudge = new myClass.UserJudgeData(userB.userID, userB.win, userB.currentCoin)
+
+      io.to(userA.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: "", ownData: userAJudge, opponent: userBJudge})
+      io.to(userB.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: "", ownData: userBJudge, opponent: userAJudge})
+      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userA.userID, userA: userAJudge, userB: userBJudge})
 
       if (room.questionIndex >= room.questionCount) { 
         questionEnd(roomID) 
@@ -422,10 +450,12 @@ function connectTimeOut(roomID) {
 
   const user = room.users.find(it => it.status == GameStatus.JudgeCheck)
 
-  coinSettlement(roomID)
+  coinSettlement(roomID, user.userID, GameConnect.Disconnect, false)
 
+  //舊版 之後要移除
   io.in(roomID).emit('room_game_end', {roomID: roomID, userID: user.userID, status: GameConnect.Disconnect})
   socketLog(false, "room_game_end",  {roomID: roomID, userID: user.userID, status: GameConnect.Disconnect})
+  //============
   
   system.delete(roomID)
 }
@@ -463,16 +493,17 @@ function userLeaveGame(roomID, userID, isForceLeave) {
   leaveUser.currentCoin -= room.rates  //金額待定
   otherUser.currentCoin += room.rates  //金額待定
 
-  coinSettlement(roomID)
+  coinSettlement(roomID, userID, GameConnect.Leave, isForceLeave)
 
-  if (isForceLeave) {
+  //舊版 之後要移除
+    if (isForceLeave) {
     io.to(leaveUser.socketID).emit('force_leave', {roomID: roomID, userID: userID, status: GameConnect.Leave})
     io.to(otherUser.socketID).emit('room_game_end', {roomID: roomID, userID: userID, status: GameConnect.Leave})
   } else {
     io.in(roomID).emit('room_game_end', {roomID: roomID, userID: userID, status: GameConnect.Leave})
-  }
-
+  } 
   socketLog(false, "room_game_end", {roomID: roomID, userID: userID, status: GameConnect.Leave})
+  //============
 
   system.delete(roomID)
 }
@@ -482,10 +513,12 @@ function coinNotEnough(roomID, userID) {
   console.log("------------------------------------------------------------------------------------------")
   console.log("<< function -> coinNotEnough >>")
 
-  coinSettlement(roomID)
+  coinSettlement(roomID, userID, GameConnect.Bust, false)
 
+  //舊版 之後要移除
   io.in(roomID).emit('room_game_end', {roomID: roomID, userID: userID, status: GameConnect.Bust})
   socketLog(false, "room_game_end", {roomID: roomID, userID: userID, status: GameConnect.Bust})
+  //============
 
   waitingGroup.delete(roomID)
   system.delete(roomID)
@@ -496,17 +529,19 @@ function questionEnd(roomID) {
   console.log("------------------------------------------------------------------------------------------")
   console.log("<< questionEnd >>")
 
-  coinSettlement(roomID)
+  coinSettlement(roomID, "", GameConnect.QuestionEnd, false)
 
+  //舊版 之後要移除
   io.in(roomID).emit('room_game_end', {roomID: roomID, userID: "", status: GameConnect.QuestionEnd})
   socketLog(false, "room_game_end", {roomID: roomID, userID: "", status: GameConnect.QuestionEnd})
+  //============
 
   waitingGroup.delete(roomID)
   system.delete(roomID)
 }
 
 //加扣錢
-function coinSettlement(roomID) {
+function coinSettlement(roomID, userID, status, isForceLeave) {
   console.log("------------------------------------------------------------------------------------------")
   console.log("<< function -> coinSettlement >>")
 
@@ -553,15 +588,46 @@ function coinSettlement(roomID) {
     lossStatus = GameResult.Draw
   }
 
+  //處理遊戲結束狀態
+  let winUserEndStatus
+  let lossUserEndStatus
+  if (isForceLeave) {
+    let leaveStatus = new Map()
+    
+    if (userID == winUser.userID) {
+      leaveStatus.set(winUser.userID, GameConnect.ForceLeave)
+      leaveStatus.set(lossUser.userID, GameConnect.Leave)
+    } else {
+      leaveStatus.set(winUser.userID, GameConnect.Leave)
+      leaveStatus.set(lossUser.userID, GameConnect.ForceLeave)
+    }
+      
+    winUserEndStatus = new myClass.GameEndStatus(userID, leaveStatus.get(winUser.userID))
+    lossUserEndStatus = new myClass.GameEndStatus(userID, leaveStatus.get(lossUser.userID))
+  } else {
+    winUserEndStatus = new myClass.GameEndStatus(userID, status)
+    lossUserEndStatus = new myClass.GameEndStatus(userID, status)
+  }
+
+  //舊版 之後要移除
   let winData = new myClass.GameResult(roomID, winUser.userID, winUser.originCoin, winUser.currentCoin, winStatus)
   io.to(winUser.socketID).emit('room_game_result', winData)
-  socketLog(false, "room_game_result", winData)
 
-  let loassData = new myClass.GameResult(roomID, lossUser.userID, lossUser.originCoin, lossUser.currentCoin, lossStatus)
-  io.to(lossUser.socketID).emit('room_game_result', loassData)
-  socketLog(false, "room_game_result", loassData)
+  let lossData = new myClass.GameResult(roomID, lossUser.userID, lossUser.originCoin, lossUser.currentCoin, lossStatus)
+  io.to(lossUser.socketID).emit('room_game_result', lossData)
+  //============
 
-  httpPost("game/result", new myClass.GameResultReq(roomID, room.gameMode, draw, winUser.userID, lossUser.userID, ""))
+  //新版
+  let winUserData = new myClass.GameEnd(roomID, winUser.userID, winUser.originCoin, winUser.currentCoin, winUser.win, lossUser.win, winStatus, winUserEndStatus)
+  io.to(winUser.socketID).emit('game_end', winUserData)
+  socketLog(false, "game_end << win >>", winUserData)
+
+  let lossUserData = new myClass.GameEnd(roomID, lossUser.userID, lossUser.originCoin, lossUser.currentCoin, lossUser.win, winUser.win, lossStatus, lossUserEndStatus)
+  io.to(lossUser.socketID).emit('game_end', lossUserData)
+  socketLog(false, "game_end << loss >>", lossUserData)
+  //============
+
+  httpPost("game/result", new myClass.GameResultReq(roomID, room.gameMode, draw, winUser.userID, lossUser.userID, room._id))
 }
 
 /**
@@ -612,6 +678,7 @@ function ResponseData(url, obj) {
 
       let room = system.get(obj.roomID)
       if (room === undefined) { return }
+      room._id = obj._id
       
       let data = {roomID: obj.roomID, userA: room.users[0].userID, userB: room.users[1].userID, videoID: obj.videoID, _id: obj._id}
       io.to(room.users[0].socketID).emit("matched", data)
