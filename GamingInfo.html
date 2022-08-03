@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+        <title>Gaming Player</title>
+    </head>
+    <style>
+        button {
+            text-align: center;
+            width: 100px;
+            margin-left: 50px;
+        }
+
+        table {
+            width: 95%;
+            margin: 50px auto;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        td {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+        }
+
+        th {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+            background-color: rgb(233, 233, 233);
+        }
+
+        .bsn {border-style:none;}
+    </style>
+    <body>
+        <table>
+            <button onclick="getData()">Refresh</button>
+            <tbody id="tbody1"></tbody>
+        </table>
+
+        <script>
+            var API_URL = "http://172.20.10.2:8500"
+            //var API_URL = "https://game.italkutalk.com"
+
+            window.onload = getData()
+
+            function getData() {
+                httpPost("/gaming/info");
+            }
+
+            function setTable(datas) {
+                console.log(datas)
+
+                var tbody = ""
+                for (var i = 0; i < datas.length; i++) {
+                    tbody += "<tr>";
+                    tbody += "<th>RoomID</th>";
+                    tbody += "<th>VideoID</th>";
+                    tbody += "<th>_id</th>";
+                    tbody += "<th>Rates</th>";
+                    tbody += "<th>Schedule</th>";
+                    tbody += "</tr>";
+
+                    tbody += "<tr>";
+                    tbody += "<td rowspan=\"4\">" + datas[i].roomID + "</td>";
+                    tbody += "<td>" + datas[i].videoID + "</td>";
+                    tbody += "<td>" + datas[i]._id + "</td>";
+                    tbody += "<td>" + datas[i].rate + "</td>";
+                    tbody += "<td>" + datas[i].schedule + "</td>";
+                    tbody += "</tr>";
+
+                    tbody += "<tr>";
+                    tbody += "<th>UserID</th>";
+                    tbody += "<th>OriginCoin</th>";
+                    tbody += "<th>CurrentCoin</th>";
+                    tbody += "<th>Win</th>";
+                    tbody += "</tr>";
+
+                    tbody += "<tr>"
+                    tbody += "<td>" + datas[i].userA.userID + "</td>";
+                    tbody += "<td>" + datas[i].userA.originCoin + "</td>";
+                    tbody += "<td>" + datas[i].userA.currentCoin + "</td>";
+                    tbody += "<td>" + datas[i].userA.win + "</td>";
+                    tbody += "</tr><tr>";
+                    tbody += "<td>" + datas[i].userB.userID + "</td>";
+                    tbody += "<td>" + datas[i].userB.originCoin + "</td>";
+                    tbody += "<td>" + datas[i].userB.currentCoin + "</td>";
+                    tbody += "<td>" + datas[i].userB.win + "</td>";
+                    tbody += "</tr><tr><td class=\"bsn\"> </td></tr>"
+                }
+
+                $("#tbody1").html(tbody)
+            }
+
+            async function httpPost(url, data) {
+                async function get() {
+                    try { 
+                        console.log(API_URL + url)
+                        return await axios.get(API_URL + url).then(response => response.data)
+                    } catch(error) {
+                        console.log(error)
+                    }
+                }
+
+                var temp = await get()
+                ResponseData(url, temp)
+            }
+
+            function ResponseData(url, obj) {
+                switch (url) {
+                    case '/gaming/info':
+                        console.log(obj)
+                        setTable(obj)
+                    break;
+
+                    default:
+                    break;
+                }
+            }
+        </script>
+    </body>
+</html>

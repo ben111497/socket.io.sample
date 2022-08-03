@@ -42,8 +42,13 @@ app.get('/', (req, res) => {
 });
 
 //導向網頁 "沒有功能"
-app.get('/a', (req, res) => {
-  res.sendFile(__dirname + '/clientA.html');
+app.get('/gaming/info.html', (req, res) => {
+  res.sendFile(__dirname + '/GamingInfo.html');
+});
+
+//導向網頁 "沒有功能"
+app.get('/pairing/info.html', (req, res) => {
+  res.sendFile(__dirname + '/PairingInfo.html');
 });
 
 //get 方式使用 userID 移除列隊
@@ -85,9 +90,15 @@ app.get('/pairing/reset', (req, res) => {
 //取得遊戲中的使用者資料
 //http://192.168.0.179:8085/gaming/info
 app.get('/gaming/info', (req, res) => {
-  let data = Array.from(system.values())
+  let data = []
+  for (let [roomID, value] of system) {
+    let schedule = value.questionIndex + "/" + value.questionCount
+    data.push({roomID: roomID, videoID: value.videoID, _id: value._id, rate: value.rates, schedule: schedule, userA: value.users[0], userB: value.users[1]})
+  }
   console.log("------------------------------------------------------------------------------------------")
   console.log(data)
+
+  res.set('Access-Control-Allow-Origin', '*');
   res.send(data)
 })
 
@@ -679,7 +690,8 @@ function ResponseData(url, obj) {
       let room = system.get(obj.roomID)
       if (room === undefined) { return }
       room._id = obj._id
-      
+      room.videoID = obj.videoID
+       
       let data = {roomID: obj.roomID, userA: room.users[0].userID, userB: room.users[1].userID, videoID: obj.videoID, _id: obj._id}
       io.to(room.users[0].socketID).emit("matched", data)
       io.to(room.users[1].socketID).emit("matched", data)

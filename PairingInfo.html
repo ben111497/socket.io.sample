@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+        <title>Pairing Player</title>
+    </head>
+    <style>
+        button {
+            text-align: center;
+            width: 100px;
+            margin-left: 50px;
+        }
+
+        table {
+            width: 95%;
+            margin: 50px auto;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        td {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+        }
+
+        th {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+            background-color: rgb(233, 233, 233);
+        }
+
+        .bsn {border-style:none;}
+    </style>
+    <body>
+        <table>
+            <button onclick="getData()">Refresh</button>
+            <tbody id="tbody1"></tbody>
+        </table>
+
+        <script>
+            var API_URL = "http://172.20.10.2:8500"
+            //var API_URL = "https://game.italkutalk.com"
+
+            window.onload = getData()
+
+            function getData() {
+                httpPost("/pairing/info");
+            }
+
+            function setTable(datas) {
+                console.log(datas)
+
+                var tbody = ""
+                tbody += "<tr>";
+                tbody += "<th>userID</th>";
+                tbody += "<th>Language-ISO</th>";
+                tbody += "<th>Rates</th>";
+                tbody += "<th>Coin</th>";
+                tbody += "</tr>";
+
+                for (var i = 0; i < datas.length; i++) {
+                    tbody += "<tr>";
+                    tbody += "<td>" + datas[i].userID + "</td>";
+                    tbody += "<td>" + codeToIso(datas[i].language) + "</td>";
+                    tbody += "<td>" + datas[i].rates + "</td>";
+                    tbody += "<td>" + datas[i].coin + "</td>";
+                    tbody += "</tr>";
+                }
+
+                $("#tbody1").html(tbody)
+            }
+
+            async function httpPost(url, data) {
+                async function get() {
+                    try { 
+                        console.log(API_URL + url)
+                        return await axios.get(API_URL + url).then(response => response.data)
+                    } catch(error) {
+                        console.log(error)
+                    }
+                }
+
+                var temp = await get()
+                ResponseData(url, temp)
+            }
+
+            function ResponseData(url, obj) {
+                switch (url) {
+                    case '/pairing/info':
+                        console.log(obj)
+                        setTable(obj)
+                    break;
+
+                    default:
+                    break;
+                }
+            }
+
+            function codeToIso(language) {
+                switch (language) {
+                    case 1:
+                        return "zh-tw"
+                        break;
+                    case 2:
+                        return "en"
+                        break;
+                    case 3:
+                        return "ja"
+                        break;
+                    case 4:
+                        return "ko"
+                        break;
+                    case 7:
+                        return "vi"
+                        break;
+                    case 9:
+                        return "de"
+                        break;
+                    case 10:
+                        return "fr"
+                        break;
+                    case 11:
+                        return "es"
+                        break;
+                    case 16:
+                        return "ru"
+                        break;
+                    case -100:
+                        return "zh_cn"
+                        break;
+                }
+            }
+        </script>
+    </body>
+</html>
