@@ -678,13 +678,20 @@ async function httpPost(url, data) {
   }
 
   var temp = await post()
-  ResponseData(url, temp)
+  ResponseData(url, temp, data)
 }
 
-function ResponseData(url, obj) {
+function ResponseData(url, obj, req) {
   apiConsole(false, API_URL + url, obj)
   switch (url) {
     case 'game/question/get':
+      if (obj === undefined) {
+        return;
+      } else if (obj.status != 0 || obj._id == undefined) {
+        httpPost("game/question/get", req)
+        return;
+      }
+
       pairingCheckGroup = pairingCheckGroup.filter(it => it.roomID != obj.roomID)
 
       let room = system.get(obj.roomID)

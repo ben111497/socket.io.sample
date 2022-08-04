@@ -15,8 +15,10 @@
         }
 
         table {
-            width: 95%;
-            margin: 50px auto;
+            width: 90%;
+            margin-left: 50px;
+            margin-right: 50px;
+            margin-top: 25px;
             border-collapse: collapse;
             text-align: center;
         }
@@ -39,15 +41,54 @@
         }
 
         .bsn {border-style:none;}
+
+        .title {
+            color:rgb(5, 0, 33);
+            width: 90% auto;
+            height: 75px auto;
+            margin-right: 50px;
+            margin-left: 50px;
+            text-align: center;
+        }
+
+        .left {
+            width:85%;
+            height:25px auto;
+            font-size:20px;
+            text-align:left;
+            vertical-align:middle;
+            float:left;
+        }
+
+        .right {
+            width:7.5%;
+            height:25px auto;
+            font-size:20px;
+            text-align:center;
+            vertical-align:middle;
+            float:right;
+        }
+
+        .info {
+            width: 90%;
+            height:25px;
+            margin-left: 50px;
+            margin-right: 50px;
+            text-align:center;
+        }
     </style>
     <body>
         <table>
-            <button onclick="getData()">Refresh</button>
+            <h1 class=title>Gaming Info</h1>
+            <div class=info>
+                <div class=left id="info"></div>
+                <button class=right onclick="getData()">Refresh</button>
+            </div>
             <tbody id="tbody1"></tbody>
         </table>
 
         <script>
-            var API_URL = "http://172.20.10.2:8500"
+            var API_URL = "http://192.168.0.179:8500"
             //var API_URL = "https://game.italkutalk.com"
 
             window.onload = getData()
@@ -81,23 +122,32 @@
                     tbody += "<th>UserID</th>";
                     tbody += "<th>OriginCoin</th>";
                     tbody += "<th>CurrentCoin</th>";
-                    tbody += "<th>Win</th>";
+                    tbody += "<th>Wins</th>";
                     tbody += "</tr>";
 
                     tbody += "<tr>"
                     tbody += "<td>" + datas[i].userA.userID + "</td>";
                     tbody += "<td>" + datas[i].userA.originCoin + "</td>";
-                    tbody += "<td>" + datas[i].userA.currentCoin + "</td>";
+
+                    let userACount = ""
+                    let coinA = datas[i].userA.currentCoin - datas[i].userA.originCoin
+                    if (coinA > 0) { userACount = ` (+${coinA})` } else { userACount = ` (${coinA})` }
+                    tbody += "<td>" + datas[i].userA.currentCoin + userACount + "</td>";
                     tbody += "<td>" + datas[i].userA.win + "</td>";
                     tbody += "</tr><tr>";
                     tbody += "<td>" + datas[i].userB.userID + "</td>";
                     tbody += "<td>" + datas[i].userB.originCoin + "</td>";
-                    tbody += "<td>" + datas[i].userB.currentCoin + "</td>";
+
+                    let userBCount = ""
+                    let coinB = datas[i].userB.currentCoin - datas[i].userB.originCoin
+                    if (coinB > 0) { userBCount = ` (+${coinB})` } else { userBCount = ` (${coinB})` }
+                    tbody += "<td>" + datas[i].userB.currentCoin + userBCount + "</td>";
                     tbody += "<td>" + datas[i].userB.win + "</td>";
                     tbody += "</tr><tr><td class=\"bsn\"> </td></tr>"
                 }
 
                 $("#tbody1").html(tbody)
+                $("#info").html(`目前遊戲中人數: ${datas.length * 2}`)
             }
 
             async function httpPost(url, data) {

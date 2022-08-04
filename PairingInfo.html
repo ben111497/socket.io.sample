@@ -15,8 +15,10 @@
         }
 
         table {
-            width: 95%;
-            margin: 50px auto;
+            width: 90%;
+            margin-left: 50px;
+            margin-right: 50px;
+            margin-top: 25px;
             border-collapse: collapse;
             text-align: center;
         }
@@ -37,17 +39,53 @@
             border: 1.5px solid #333;
             background-color: rgb(233, 233, 233);
         }
+        .title {
+            color:rgb(5, 0, 33);
+            width: 90% auto;
+            height: 75px auto;
+            margin-right: 50px;
+            margin-left: 50px;
+            text-align: center;
+        }
 
-        .bsn {border-style:none;}
+        .left {
+            width:85%;
+            height:25px auto;
+            font-size:20px;
+            text-align:left;
+            vertical-align:middle;
+            float:left;
+        }
+
+        .right {
+            width:7.5%;
+            height:25px auto;
+            font-size:20px;
+            text-align:center;
+            vertical-align:middle;
+            float:right;
+        }
+
+        .info {
+            width: 90%;
+            height:25px;
+            margin-left: 50px;
+            margin-right: 50px;
+            text-align:center;
+        }
     </style>
     <body>
         <table>
-            <button onclick="getData()">Refresh</button>
+            <h1 class=title>Pairing Info</h1>
+            <div class=info>
+                <div class=left id="info"></div>
+                <button class=right onclick="getData()">Refresh</button>
+            </div>
             <tbody id="tbody1"></tbody>
         </table>
 
         <script>
-            var API_URL = "http://172.20.10.2:8500"
+            var API_URL = "http://192.168.0.179:8500"
             //var API_URL = "https://game.italkutalk.com"
 
             window.onload = getData()
@@ -77,6 +115,7 @@
                 }
 
                 $("#tbody1").html(tbody)
+                $("#info").html(`目前配對等待人數: ${datas.length}`)
             }
 
             async function httpPost(url, data) {
@@ -99,7 +138,6 @@
                         console.log(obj)
                         setTable(obj)
                     break;
-
                     default:
                     break;
                 }
