@@ -10,7 +10,7 @@
     <style>
         button {
             text-align: center;
-            width: 100px;
+            width: 125px;
             margin-left: 50px;
         }
 
@@ -49,7 +49,7 @@
         }
 
         .left {
-            width:85%;
+            width:80%;
             height:25px auto;
             font-size:20px;
             text-align:left;
@@ -58,7 +58,7 @@
         }
 
         .right {
-            width:7.5%;
+            width:15%;
             height:25px auto;
             font-size:20px;
             text-align:center;
@@ -75,27 +75,40 @@
         }
     </style>
     <body>
+        <h1 class=title>Pairing Info</h1>
+        <div class=info>
+            <div class=left id="info"></div>
+            <button class=right id="refresh" onclick="getData()">Refresh(10)</button>
+        </div>
         <table>
-            <h1 class=title>Pairing Info</h1>
-            <div class=info>
-                <div class=left id="info"></div>
-                <button class=right onclick="getData()">Refresh</button>
-            </div>
             <tbody id="tbody1"></tbody>
         </table>
 
         <script>
             var API_URL = "http://192.168.0.179:8500"
             //var API_URL = "https://game.italkutalk.com"
+            var time = 11
+            var timeoutID = window.setInterval(( () => countDown() ), 1000);
 
             window.onload = getData()
 
+            function countDown() {
+                if (time == 0) {
+                    getData()
+                } else {
+                    time--
+                    $("#refresh").html(`Refresh(${time})`)
+                }
+            }
+
             function getData() {
+                time = 10
+                $("#refresh").html(`Refresh(${time})`)
                 httpPost("/pairing/info");
             }
 
             function setTable(datas) {
-                console.log(datas)
+                if (datas === undefined) return;
 
                 var tbody = ""
                 tbody += "<tr>";

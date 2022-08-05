@@ -37,22 +37,25 @@ const GameError = Object.freeze({"RepeatConnection": 0, "Gaming": 1, "JudgeCheck
  * 路由
  */
 //http://192.168.0.179:8085/
+//https://game.italkutalk.com/
 app.get('/', (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
 });
 
-//導向網頁 "沒有功能"
+app.get('/homepage', (req, res) => {
+  res.sendFile(__dirname + '/HomePage.html');
+});
+
 app.get('/gaming/info.html', (req, res) => {
   res.sendFile(__dirname + '/GamingInfo.html');
 });
 
-//導向網頁 "沒有功能"
 app.get('/pairing/info.html', (req, res) => {
   res.sendFile(__dirname + '/PairingInfo.html');
 });
 
 //get 方式使用 userID 移除列隊
-//http://192.168.0.179:8085/pairing/remove?userID=...
+//../pairing/remove?userID=...
 app.get('/pairing/remove', (req, res) => {
   let url = new URL(API_URL + req._parsedUrl.href)
   let userID = url.searchParams.get('userID')
@@ -68,15 +71,12 @@ app.get('/pairing/remove', (req, res) => {
 });
 
 //取得列隊中的使用者資料
-//http://192.168.0.179:8500/pairing/info
 app.get('/pairing/info', (req, res) => {
-  console.log("------------------------------------------------------------------------------------------")
-  console.log(pairingGroup)
+  res.set('Access-Control-Allow-Origin', '*');
   res.send(pairingGroup)
 })
 
 //清除全部列隊中的玩家
-//http://192.168.0.179:8500/pairing/reset
 app.get('/pairing/reset', (req, res) => {
   console.log("------------------------------------------------------------------------------------------")
   for (let i of pairingGroup) {
@@ -88,26 +88,18 @@ app.get('/pairing/reset', (req, res) => {
 })
 
 //取得遊戲中的使用者資料
-//http://192.168.0.179:8085/gaming/info
 app.get('/gaming/info', (req, res) => {
   let data = []
   for (let [roomID, value] of system) {
     let schedule = value.questionIndex + "/" + value.questionCount
     data.push({roomID: roomID, videoID: value.videoID, _id: value._id, rate: value.rates, schedule: schedule, userA: value.users[0], userB: value.users[1]})
   }
-  console.log("------------------------------------------------------------------------------------------")
-  console.log(data)
-
   res.set('Access-Control-Allow-Origin', '*');
   res.send(data)
 })
 
 //取的遊戲列隊+遊戲中人數
-//http://192.168.0.179:8085/user/count
 app.get('/user/count', (req, res) => {
-  console.log("------------------------------------------------------------------------------------------")
-  console.log("gaming: " + system.size * 2)
-  console.log("pairing: " + pairingGroup.length)
   res.send({gamingCount: system.size * 2, pairingCount: pairingGroup.length})
 })
 

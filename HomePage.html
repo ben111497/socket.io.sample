@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html">
+        <title>Pairing Player</title>
+        
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js" type="text/javascript"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js" type="text/javascript"></script>
+
+        <link href="https://getbootstrap.com/docs/5.2/examples/navbars/">
+        <link href="./assets/dist/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+        <link href="navbar.css" rel="stylesheet" type="text/css">
+        
+    </head>
+    <style>
+        .itutBird {
+            text-align: center;
+            width: 50%;
+            height: 50%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .iframe-class {
+            width: 100%;
+            height: 700px;
+            overflow: auto;
+        }
+
+        button {
+            text-align: center;
+            width: 125px;
+            margin-left: 50px;
+        }
+
+        table {
+            width: 90%;
+            margin-left: 50px;
+            margin-right: 50px;
+            margin-top: 25px;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        td {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+        }
+
+        th {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+            background-color: rgb(233, 233, 233);
+        }
+        .title {
+            color:rgb(5, 0, 33);
+            width: 90% auto;
+            height: 75px auto;
+            margin-right: 50px;
+            margin-left: 50px;
+            text-align: center;
+        }
+
+        .left {
+            width:85%;
+            height:30px auto;
+            font-size:20px;
+            text-align:left;
+            vertical-align:middle;
+            float:left;
+        }
+
+        .right {
+            width:10%;
+            height:30px auto;
+            font-size:20px;
+            text-align:center;
+            vertical-align:middle;
+            float:right;
+        }
+
+        .info {
+            width: 90%;
+            height:25px;
+            margin-left: 50px;
+            margin-right: 50px;
+            text-align:center;
+        }
+    </style>
+    <body>
+        <nav class="navbar navbar-expand-xl navbar-dark bg-dark" aria-label="Sixth navbar example">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Game Center</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsExample06" aria-controls="navbarsExample06" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+                </button>
+        
+                <div class="collapse navbar-collapse" id="navbarsExample06">
+                <ul class="navbar-nav me-auto mb-2 mb-xl-0">
+                    <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="switchTo(0)">Home</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="switchTo(1)">Pairing</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="switchTo(2)">Gaming</a>
+                    </li>
+                </ul>
+                </div>
+            </div>
+        </nav>
+
+        <img id="bird" class="itutBird" src="../socket.io.sample/mainIcon.png">
+        <div class="container">
+            <iframe id="page" class="iframe-class" src=""></iframe>
+        </div>
+        
+          <script>
+            function switchTo(page) {
+                let iframe = document.getElementById("page")
+                let bird = document.getElementById("bird")
+
+                switch(page) {
+                    case 0:
+                        iframe.src = ""
+                        bird.style.display = "block"
+                        break;
+                    case 1:
+                        bird.style.display = "none"
+                        iframe.src = "http://192.168.0.179:8500/pairing/info.html"
+                        break;
+                    case 2:
+                        bird.style.display = "none"
+                        iframe.src = "http://192.168.0.179:8500/gaming/info.html"
+                        break;
+                    default:
+                        return
+                        break;
+                }
+            }
+          </script>
+    </body>
+</html>

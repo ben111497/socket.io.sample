@@ -44,7 +44,7 @@
 
         .title {
             color:rgb(5, 0, 33);
-            width: 90% auto;
+            width: 80% auto;
             height: 75px auto;
             margin-right: 50px;
             margin-left: 50px;
@@ -52,7 +52,7 @@
         }
 
         .left {
-            width:85%;
+            width:80%;
             height:25px auto;
             font-size:20px;
             text-align:left;
@@ -61,7 +61,7 @@
         }
 
         .right {
-            width:7.5%;
+            width:15%;
             height:25px auto;
             font-size:20px;
             text-align:center;
@@ -78,28 +78,39 @@
         }
     </style>
     <body>
+        <h1 class=title>Gaming Info</h1>
+        <div class=info>
+            <div class=left id="info"></div>
+            <button class=right onclick="getData()" id="refresh">Refresh(10)</button>
+        </div>
         <table>
-            <h1 class=title>Gaming Info</h1>
-            <div class=info>
-                <div class=left id="info"></div>
-                <button class=right onclick="getData()">Refresh</button>
-            </div>
             <tbody id="tbody1"></tbody>
         </table>
 
         <script>
             var API_URL = "http://192.168.0.179:8500"
             //var API_URL = "https://game.italkutalk.com"
+            var time = 11
+            var timeoutID = window.setInterval(( () => countDown() ), 1000);
 
             window.onload = getData()
 
+            function countDown() {
+                if (time == 0) {
+                    getData()
+                } else {
+                    time--
+                    $("#refresh").html(`Refresh(${time})`)
+                }
+            }
+
             function getData() {
+                time = 10
+                $("#refresh").html(`Refresh(${time})`)
                 httpPost("/gaming/info");
             }
 
             function setTable(datas) {
-                console.log(datas)
-
                 var tbody = ""
                 for (var i = 0; i < datas.length; i++) {
                     tbody += "<tr>";
