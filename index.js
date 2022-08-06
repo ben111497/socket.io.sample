@@ -408,7 +408,7 @@ function judge(roomID) {
 
       io.to(userA.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userB.userID, ownData: userAJudge, opponent: userBJudge})
       io.to(userB.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: userB.userID, ownData: userBJudge, opponent: userAJudge})
-      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userA.userID, userA: userAJudge, userB: userBJudge})
+      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userB.userID, userA: userAJudge, userB: userBJudge})
 
       if (room.questionIndex >= room.questionCount) {
          questionEnd(roomID)
@@ -425,7 +425,7 @@ function judge(roomID) {
 
       io.to(userA.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: "", ownData: userAJudge, opponent: userBJudge})
       io.to(userB.socketID).emit('room_judge', {roomID: roomID, coin: coin, winUserID: "", ownData: userBJudge, opponent: userAJudge})
-      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: userA.userID, userA: userAJudge, userB: userBJudge})
+      socketLog(false, "room_judge", {roomID: roomID, coin: coin, winUserID: "", userA: userAJudge, userB: userBJudge})
 
       if (room.questionIndex >= room.questionCount) { 
         questionEnd(roomID) 
