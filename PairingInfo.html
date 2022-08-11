@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+        <title>Pairing Player</title>
+    </head>
+    <style>
+        button {
+            text-align: center;
+            width: 125px;
+            margin-left: 50px;
+        }
+
+        table {
+            width: 90%;
+            margin-left: 50px;
+            margin-right: 50px;
+            margin-top: 25px;
+            border-collapse: collapse;
+            text-align: center;
+        }
+
+        td {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+        }
+
+        th {
+            padding-right: 10px;
+            padding-left: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 1.5px solid #333;
+            background-color: rgb(233, 233, 233);
+        }
+        .title {
+            color:rgb(5, 0, 33);
+            width: 90% auto;
+            height: 75px auto;
+            margin-right: 50px;
+            margin-left: 50px;
+            text-align: center;
+        }
+
+        .left {
+            width:80%;
+            height:25px auto;
+            font-size:20px;
+            text-align:left;
+            vertical-align:middle;
+            float:left;
+        }
+
+        .right {
+            width:15%;
+            height:25px auto;
+            font-size:20px;
+            text-align:center;
+            vertical-align:middle;
+            float:right;
+        }
+
+        .info {
+            width: 90%;
+            height:25px;
+            margin-left: 50px;
+            margin-right: 50px;
+            text-align:center;
+        }
+    </style>
+    <body>
+        <h1 class=title>Pairing Info</h1>
+        <div class=info>
+            <div class=left id="info"></div>
+            <button class=right id="refresh" onclick="getData()">Refresh(10)</button>
+        </div>
+        <table>
+            <tbody id="tbody1"></tbody>
+        </table>
+
+        <script>
+            var API_URL = "http://192.168.0.179:8500"
+            //var API_URL = "https://game.italkutalk.com"
+            var time = 11
+            var timeoutID = window.setInterval(( () => countDown() ), 1000);
+
+            window.onload = getData()
+
+            function countDown() {
+                if (time == 0) {
+                    getData()
+                } else {
+                    time--
+                    $("#refresh").html(`Refresh(${time})`)
+                }
+            }
+
+            function getData() {
+                time = 10
+                $("#refresh").html(`Refresh(${time})`)
+                httpPost("/pairing/info");
+            }
+
+            function setTable(datas) {
+                if (datas === undefined) return;
+
+                var tbody = ""
+                tbody += "<tr>";
+                tbody += "<th>userID</th>";
+                tbody += "<th>Language-ISO</th>";
+                tbody += "<th>Rates</th>";
+                tbody += "<th>Coin</th>";
+                tbody += "</tr>";
+
+                for (var i = 0; i < datas.length; i++) {
+                    tbody += "<tr>";
+                    tbody += "<td>" + datas[i].userID + "</td>";
+                    tbody += "<td>" + codeToIso(datas[i].language) + "</td>";
+                    tbody += "<td>" + datas[i].rates + "</td>";
+                    tbody += "<td>" + datas[i].coin + "</td>";
+                    tbody += "</tr>";
+                }
+
+                $("#tbody1").html(tbody)
+                $("#info").html(`目前配對等待人數: ${datas.length}`)
+            }
+
+            async function httpPost(url, data) {
+                async function get() {
+                    try { 
+                        console.log(API_URL + url)
+                        return await axios.get(API_URL + url).then(response => response.data)
+                    } catch(error) {
+                        console.log(error)
+                    }
+                }
+
+                var temp = await get()
+                ResponseData(url, temp)
+            }
+
+            function ResponseData(url, obj) {
+                switch (url) {
+                    case '/pairing/info':
+                        console.log(obj)
+                        setTable(obj)
+                    break;
+                    default:
+                    break;
+                }
+            }
+
+            function codeToIso(language) {
+                switch (language) {
+                    case 1:
+                        return "zh-tw"
+                        break;
+                    case 2:
+                        return "en"
+                        break;
+                    case 3:
+                        return "ja"
+                        break;
+                    case 4:
+                        return "ko"
+                        break;
+                    case 7:
+                        return "vi"
+                        break;
+                    case 9:
+                        return "de"
+                        break;
+                    case 10:
+                        return "fr"
+                        break;
+                    case 11:
+                        return "es"
+                        break;
+                    case 16:
+                        return "ru"
+                        break;
+                    case -100:
+                        return "zh_cn"
+                        break;
+                }
+            }
+        </script>
+    </body>
+</html>

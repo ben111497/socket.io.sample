@@ -1,0 +1,9 @@
+config:
+  target: "https://nativewebrtc.italkutalk.com"
+  phases:
+    - duration: 300
+      arrivalRate: 15
+scenarios:
+  - flow:
+      - get:
+          url: "/"
